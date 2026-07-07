@@ -18,6 +18,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
     '@types/aws-lambda@^8.10.162',
     '@aws-sdk/client-codepipeline@^3.1080.0',
     '@aws-sdk/client-sns@^3.1080.0',
+    'strict-env-resolver@^0.5.1',
   ],
   depsUpgradeOptions: {
     workflowOptions: {

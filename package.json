@@ -60,6 +60,7 @@
     "jsii-pacmak": "^1.138.0",
     "jsii-rosetta": "6.0.x",
     "projen": "^0.101.4",
+    "strict-env-resolver": "^0.5.1",
     "ts-jest": "^29.4.11",
     "ts-node": "^10.9.2",
     "typescript": "6.0.x"
