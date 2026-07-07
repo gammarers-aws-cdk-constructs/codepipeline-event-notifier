@@ -47,6 +47,8 @@ const project = new awscdk.AwsCdkConstructLibrary({
   tsconfigDev: {
     compilerOptions: {
       strict: true,
+      // Required by ts-jest when the base tsconfig uses "module": "node16"
+      isolatedModules: true,
     },
   },
   lambdaOptions: {
