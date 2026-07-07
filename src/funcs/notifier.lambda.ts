@@ -1,14 +1,15 @@
 import { CodePipelineClient, GetPipelineExecutionCommand } from '@aws-sdk/client-codepipeline';
 import { PublishCommand, SNSClient } from '@aws-sdk/client-sns';
 import type { EventBridgeEvent } from 'aws-lambda';
+import { StrictEnvResolver, StrictEnvType } from 'strict-env-resolver';
 
 /**
  * EventBridge detail payload for CodePipeline execution state-change events.
  */
 type CodePipelineExecutionStartedDetail = {
-  pipeline?: string;
-  state?: string;
-  version?: string;
+  'pipeline'?: string;
+  'state'?: string;
+  'version'?: string;
   'execution-id'?: string;
 };
 
@@ -33,11 +34,7 @@ const codepipeline = new CodePipelineClient({});
 /**
  * Reads a required environment variable.
  */
-const mustEnv = (name: string): string => {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing env var: ${name}`);
-  return v;
-};
+const mustEnv = (name: string): string => StrictEnvResolver.resolve(name, StrictEnvType.String, { trim: true });
 
 /**
  * Sleeps for the specified number of milliseconds.
@@ -146,15 +143,15 @@ export const handler = async (event: CodePipelineExecutionStartedEvent): Promise
     return;
   }
 
-  const pollIntervalSeconds = Number(process.env.POLL_INTERVAL_SECONDS ?? '10');
-  const maxPollMinutes = Number(process.env.MAX_POLL_MINUTES ?? '14');
+  const pollIntervalSeconds = StrictEnvResolver.resolve('POLL_INTERVAL_SECONDS', StrictEnvType.Number, { default: 10 });
+  const maxPollMinutes = StrictEnvResolver.resolve('MAX_POLL_MINUTES', StrictEnvType.Number, { default: 14 });
 
   await pollPipelineExecution({
     topicArn,
     pipelineName,
     executionId,
-    pollIntervalSeconds: Number.isFinite(pollIntervalSeconds) && pollIntervalSeconds > 0 ? pollIntervalSeconds : 10,
-    maxPollMinutes: Number.isFinite(maxPollMinutes) && maxPollMinutes > 0 ? maxPollMinutes : 14,
+    pollIntervalSeconds: pollIntervalSeconds > 0 ? pollIntervalSeconds : 10,
+    maxPollMinutes: maxPollMinutes > 0 ? maxPollMinutes : 14,
     startEvent: event,
   });
 };
