@@ -51,4 +51,6 @@ junit.xml
 !/projenrc/tsconfig.json
 .jsii
 !/API.md
+/assets/
+!/src/funcs/notifier-function.ts
 !/.projenrc.ts

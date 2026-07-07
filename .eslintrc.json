@@ -158,6 +158,7 @@
         "devDependencies": [
           "**/test/**",
           "**/build-tools/**",
+          "src/funcs/notifier.lambda.ts",
           ".projenrc.ts",
           "projenrc/**/*.ts"
         ],
