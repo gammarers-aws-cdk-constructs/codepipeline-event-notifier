@@ -10,6 +10,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
   packageManager: javascript.NodePackageManager.NPM,
   projenrcTs: true,
   repositoryUrl: 'https://github.com/gammarers-aws-cdk-constructs/codepipeline-event-notifier.git',
+  description: 'CDK construct that listens to AWS CodePipeline execution STARTED events via EventBridge, invokes a Lambda notifier, and publishes execution state changes to an SNS topic.',
   releaseToNpm: true,
   npmTrustedPublishing: true,
   npmAccess: javascript.NpmAccess.PUBLIC,
