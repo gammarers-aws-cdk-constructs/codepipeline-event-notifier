@@ -11,7 +11,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
   projenrcTs: true,
   repositoryUrl: 'https://github.com/gammarers-aws-cdk-constructs/codepipeline-event-notifier.git',
   releaseToNpm: true,
-  npmTrustedPublishing: false,
+  npmTrustedPublishing: true,
   npmAccess: javascript.NpmAccess.PUBLIC,
   minNodeVersion: '20.0.0',
   workflowNodeVersion: '24.x',
