@@ -46,6 +46,33 @@
       ],
       "condition": "git log --oneline -1 | grep -qv \"chore(release):\""
     },
+    "bundle": {
+      "name": "bundle",
+      "description": "Prepare assets",
+      "steps": [
+        {
+          "spawn": "bundle:funcs/notifier.lambda"
+        }
+      ]
+    },
+    "bundle:funcs/notifier.lambda": {
+      "name": "bundle:funcs/notifier.lambda",
+      "description": "Create a JavaScript bundle from src/funcs/notifier.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/funcs/notifier.lambda.ts --target=\"node24\" --platform=\"node\" --outfile=\"assets/funcs/notifier.lambda/index.js\" --tsconfig=\"test/tsconfig.json\" --external:@aws-sdk/* --sourcemap"
+        }
+      ]
+    },
+    "bundle:funcs/notifier.lambda:watch": {
+      "name": "bundle:funcs/notifier.lambda:watch",
+      "description": "Continuously update the JavaScript bundle from src/funcs/notifier.lambda.ts",
+      "steps": [
+        {
+          "exec": "esbuild --bundle src/funcs/notifier.lambda.ts --target=\"node24\" --platform=\"node\" --outfile=\"assets/funcs/notifier.lambda/index.js\" --tsconfig=\"test/tsconfig.json\" --external:@aws-sdk/* --sourcemap --watch"
+        }
+      ]
+    },
     "clobber": {
       "name": "clobber",
       "description": "hard resets to HEAD of origin and cleans the local repo",
@@ -219,7 +246,12 @@
     },
     "pre-compile": {
       "name": "pre-compile",
-      "description": "Prepare the project for compilation"
+      "description": "Prepare the project for compilation",
+      "steps": [
+        {
+          "spawn": "bundle"
+        }
+      ]
     },
     "release": {
       "name": "release",
@@ -292,13 +324,13 @@
       },
       "steps": [
         {
-          "exec": "npx npm-check-updates@20 --upgrade --target=minor --peer --no-deprecated --dep=dev,peer,prod,optional --filter=@types/jest,eslint-import-resolver-typescript,eslint-plugin-import,jest,jsii-diff,jsii-pacmak,projen,ts-jest,ts-node"
+          "exec": "npx npm-check-updates@20 --upgrade --target=minor --peer --no-deprecated --dep=dev,peer,prod,optional --filter=@types/jest,esbuild,eslint-import-resolver-typescript,eslint-plugin-import,jest,jsii-diff,jsii-pacmak,projen,ts-jest,ts-node"
         },
         {
           "exec": "npm install"
         },
         {
-          "exec": "npm update @stylistic/eslint-plugin @types/jest @types/node @typescript-eslint/eslint-plugin @typescript-eslint/parser commit-and-tag-version eslint-import-resolver-typescript eslint-plugin-import eslint jest jest-junit jsii-diff jsii-docgen jsii-pacmak jsii-rosetta jsii projen ts-jest ts-node typescript aws-cdk-lib constructs"
+          "exec": "npm update @aws-sdk/client-codepipeline @aws-sdk/client-sns @stylistic/eslint-plugin @types/aws-lambda @types/jest @types/node @typescript-eslint/eslint-plugin @typescript-eslint/parser commit-and-tag-version esbuild eslint-import-resolver-typescript eslint-plugin-import eslint jest jest-junit jsii-diff jsii-docgen jsii-pacmak jsii-rosetta jsii projen strict-env-resolver ts-jest ts-node typescript aws-cdk-lib constructs"
         },
         {
           "exec": "npx projen"

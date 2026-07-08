@@ -1,8 +1,23 @@
 {
   "dependencies": [
     {
+      "name": "@aws-sdk/client-codepipeline",
+      "version": "^3.1080.0",
+      "type": "build"
+    },
+    {
+      "name": "@aws-sdk/client-sns",
+      "version": "^3.1080.0",
+      "type": "build"
+    },
+    {
       "name": "@stylistic/eslint-plugin",
       "version": "^2",
+      "type": "build"
+    },
+    {
+      "name": "@types/aws-lambda",
+      "version": "^8.10.162",
       "type": "build"
     },
     {
@@ -27,6 +42,10 @@
     {
       "name": "commit-and-tag-version",
       "version": "^12",
+      "type": "build"
+    },
+    {
+      "name": "esbuild",
       "type": "build"
     },
     {
@@ -76,6 +95,11 @@
     },
     {
       "name": "projen",
+      "type": "build"
+    },
+    {
+      "name": "strict-env-resolver",
+      "version": "^0.5.1",
       "type": "build"
     },
     {

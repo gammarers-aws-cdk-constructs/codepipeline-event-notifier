@@ -1,0 +1,188 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
+{
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "CodePipelineEventNotifierNotifierFunction0B083763": {
+      "DependsOn": [
+        "CodePipelineEventNotifierNotifierFunctionServiceRoleDefaultPolicy37A39393",
+        "CodePipelineEventNotifierNotifierFunctionServiceRoleEEBD7F39",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "472b437fc84316aa5539fffc5c78ec269e88018a1dff39c9a91987aa05b8722d.zip",
+        },
+        "Description": "src/funcs/notifier.lambda.ts",
+        "Environment": {
+          "Variables": {
+            "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+            "MAX_POLL_MINUTES": "14",
+            "POLL_INTERVAL_SECONDS": "10",
+            "SNS_TOPIC_ARN": {
+              "Ref": "CodePipelineEventNotifierPipelineEventTopicAC48249D",
+            },
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "CodePipelineEventNotifierNotifierFunctionServiceRoleEEBD7F39",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 900,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "CodePipelineEventNotifierNotifierFunctionServiceRoleDefaultPolicy37A39393": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sns:Publish",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "CodePipelineEventNotifierPipelineEventTopicAC48249D",
+              },
+            },
+            {
+              "Action": "codepipeline:GetPipelineExecution",
+              "Effect": "Allow",
+              "Resource": "*",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "CodePipelineEventNotifierNotifierFunctionServiceRoleDefaultPolicy37A39393",
+        "Roles": [
+          {
+            "Ref": "CodePipelineEventNotifierNotifierFunctionServiceRoleEEBD7F39",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "CodePipelineEventNotifierNotifierFunctionServiceRoleEEBD7F39": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "CodePipelineEventNotifierOnPipelineExecutionStartedRuleAllowEventRuleTestStackCodePipelineEventNotifierNotifierFunctionAD07201787DAC960": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "CodePipelineEventNotifierNotifierFunction0B083763",
+            "Arn",
+          ],
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "CodePipelineEventNotifierOnPipelineExecutionStartedRuleFC65CC08",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "CodePipelineEventNotifierOnPipelineExecutionStartedRuleFC65CC08": {
+      "Properties": {
+        "EventPattern": {
+          "detail": {
+            "state": [
+              "STARTED",
+            ],
+          },
+          "detail-type": [
+            "CodePipeline Pipeline Execution State Change",
+          ],
+          "source": [
+            "aws.codepipeline",
+          ],
+        },
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "CodePipelineEventNotifierNotifierFunction0B083763",
+                "Arn",
+              ],
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "CodePipelineEventNotifierPipelineEventTopicAC48249D": {
+      "Type": "AWS::SNS::Topic",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;

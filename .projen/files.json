@@ -15,6 +15,7 @@
     ".projen/tasks.json",
     "LICENSE",
     "projenrc/tsconfig.json",
+    "src/funcs/notifier-function.ts",
     "test/tsconfig.json",
     "tsconfig.json"
   ],

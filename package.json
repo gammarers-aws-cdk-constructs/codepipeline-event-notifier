@@ -1,5 +1,5 @@
 {
-  "name": "workspace",
+  "name": "codepipeline-event-notifier",
   "repository": {
     "type": "git",
     "url": "https://github.com/gammarers-aws-cdk-constructs/codepipeline-event-notifier.git"
@@ -7,6 +7,9 @@
   "scripts": {
     "build": "projen build",
     "bump": "projen bump",
+    "bundle": "projen bundle",
+    "bundle:funcs/notifier.lambda": "projen bundle:funcs/notifier.lambda",
+    "bundle:funcs/notifier.lambda:watch": "projen bundle:funcs/notifier.lambda:watch",
     "clobber": "projen clobber",
     "compat": "projen compat",
     "compile": "projen compile",
@@ -34,7 +37,10 @@
     "organization": false
   },
   "devDependencies": {
+    "@aws-sdk/client-codepipeline": "^3.1080.0",
+    "@aws-sdk/client-sns": "^3.1080.0",
     "@stylistic/eslint-plugin": "^2",
+    "@types/aws-lambda": "^8.10.162",
     "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@typescript-eslint/eslint-plugin": "^8",
@@ -42,6 +48,7 @@
     "aws-cdk-lib": "2.232.0",
     "commit-and-tag-version": "^12",
     "constructs": "10.5.1",
+    "esbuild": "^0.28.1",
     "eslint": "^9",
     "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import": "^2.32.0",
@@ -53,6 +60,7 @@
     "jsii-pacmak": "^1.138.0",
     "jsii-rosetta": "6.0.x",
     "projen": "^0.101.4",
+    "strict-env-resolver": "^0.5.1",
     "ts-jest": "^29.4.11",
     "ts-node": "^10.9.2",
     "typescript": "6.0.x"

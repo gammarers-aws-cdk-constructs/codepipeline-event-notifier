@@ -5,7 +5,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
   cdkVersion: '2.232.0',
   typescriptVersion: '6.0.x',
   jsiiVersion: '6.0.x',
-  name: 'workspace',
+  name: 'codepipeline-event-notifier',
   packageManager: javascript.NodePackageManager.NPM,
   projenrcTs: true,
   repositoryUrl: 'https://github.com/gammarers-aws-cdk-constructs/codepipeline-event-notifier.git',
@@ -14,6 +14,12 @@ const project = new awscdk.AwsCdkConstructLibrary({
   npmAccess: javascript.NpmAccess.PUBLIC,
   minNodeVersion: '20.0.0',
   workflowNodeVersion: '24.x',
+  devDeps: [
+    '@types/aws-lambda@^8.10.162',
+    '@aws-sdk/client-codepipeline@^3.1080.0',
+    '@aws-sdk/client-sns@^3.1080.0',
+    'strict-env-resolver@^0.5.1',
+  ],
   depsUpgradeOptions: {
     workflowOptions: {
       labels: ['auto-approve', 'auto-merge'],
@@ -41,6 +47,8 @@ const project = new awscdk.AwsCdkConstructLibrary({
   tsconfigDev: {
     compilerOptions: {
       strict: true,
+      // Required by ts-jest when the base tsconfig uses "module": "node16"
+      isolatedModules: true,
     },
   },
   lambdaOptions: {
