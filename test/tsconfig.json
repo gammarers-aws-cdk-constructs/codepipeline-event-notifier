@@ -5,8 +5,8 @@
     "noEmit": true,
     "rootDir": "..",
     "stripInternal": true,
-    "strict": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "strict": true
   },
   "include": [
     "**/*.ts"
