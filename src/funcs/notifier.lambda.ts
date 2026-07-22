@@ -2,6 +2,11 @@ import { CodePipelineClient, GetPipelineExecutionCommand } from '@aws-sdk/client
 import { PublishCommand, SNSClient } from '@aws-sdk/client-sns';
 import type { EventBridgeEvent } from 'aws-lambda';
 import { StrictEnvResolver, StrictEnvType } from 'strict-env-resolver';
+import {
+  isTerminalExecutionStatus,
+  normalizeExecutionStatus,
+  resolvePipelineExecutionIdentity,
+} from './notifier-predicates';
 
 /**
  * EventBridge detail payload for CodePipeline execution state-change events.
@@ -91,8 +96,7 @@ const waitPipelineExecution = async (params: {
       pipelineExecutionId: executionId,
     }));
 
-    const statusRaw = res.pipelineExecution?.status ?? 'UNKNOWN';
-    const status = String(statusRaw).toUpperCase();
+    const status = normalizeExecutionStatus(res.pipelineExecution?.status);
     if (status !== lastStatus) {
       lastStatus = status;
       await publish(topicArn, {
@@ -105,7 +109,7 @@ const waitPipelineExecution = async (params: {
       });
     }
 
-    if (status === 'SUCCEEDED' || status === 'FAILED' || status === 'STOPPED' || status === 'SUPERSEDED') {
+    if (isTerminalExecutionStatus(status)) {
       return;
     }
 
@@ -129,10 +133,12 @@ const waitPipelineExecution = async (params: {
  */
 export const handler = async (event: CodePipelineExecutionStartedEvent): Promise<void> => {
   const topicArn = mustEnv('SNS_TOPIC_ARN');
-  const pipelineName = event.detail?.pipeline;
-  const executionId = event.detail?.['execution-id'];
+  const identity = resolvePipelineExecutionIdentity(
+    event.detail?.pipeline,
+    event.detail?.['execution-id'],
+  );
 
-  if (!pipelineName || !executionId) {
+  if (!identity) {
     await publish(topicArn, {
       type: 'codepipeline.execution',
       phase: 'eventbridge',
@@ -148,8 +154,8 @@ export const handler = async (event: CodePipelineExecutionStartedEvent): Promise
 
   await waitPipelineExecution({
     topicArn,
-    pipelineName,
-    executionId,
+    pipelineName: identity.pipelineName,
+    executionId: identity.executionId,
     waitIntervalSeconds: waitIntervalSeconds > 0 ? waitIntervalSeconds : 10,
     maxWaitMinutes: maxWaitMinutes > 0 ? maxWaitMinutes : 14,
     startEvent: event,
