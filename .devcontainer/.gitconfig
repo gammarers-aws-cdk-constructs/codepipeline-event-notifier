@@ -1,6 +1,0 @@
-[user]
-  name = yicr
-  email = yicr@users.noreply.github.com
-
-[core]
-  excludesfile = /home/developer/.gitignore
