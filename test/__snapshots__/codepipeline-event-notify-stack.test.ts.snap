@@ -20,17 +20,17 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "472b437fc84316aa5539fffc5c78ec269e88018a1dff39c9a91987aa05b8722d.zip",
+          "S3Key": "9c32b74a11bf0d0e699e2910780d90dd3f6d108f1662d0a1647f6f459c3da855.zip",
         },
         "Description": "src/funcs/notifier.lambda.ts",
         "Environment": {
           "Variables": {
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
-            "MAX_POLL_MINUTES": "14",
-            "POLL_INTERVAL_SECONDS": "10",
+            "MAX_WAIT_MINUTES": "14",
             "SNS_TOPIC_ARN": {
               "Ref": "CodePipelineEventNotifierPipelineEventTopicAC48249D",
             },
+            "WAIT_INTERVAL_SECONDS": "10",
           },
         },
         "Handler": "index.handler",

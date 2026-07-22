@@ -1,5 +1,4 @@
-export class Hello {
-  public sayHello() {
-    return 'hello, world!';
-  }
-}
+export {
+  CodePipelineEventNotifier,
+  CodePipelineEventNotifierProps,
+} from './constructs/codepipeline-event-notifier';
