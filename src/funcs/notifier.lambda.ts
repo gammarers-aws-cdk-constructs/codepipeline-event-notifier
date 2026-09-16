@@ -1,4 +1,4 @@
-import { CodePipelineClient, GetPipelineExecutionCommand } from '@aws-sdk/client-codepipeline';
+import { CodePipelineClient, GetPipelineExecutionCommand, ListTagsForResourceCommand } from '@aws-sdk/client-codepipeline';
 import { PublishCommand, SNSClient } from '@aws-sdk/client-sns';
 import type { EventBridgeEvent } from 'aws-lambda';
 import { StrictEnvResolver, StrictEnvType } from 'strict-env-resolver';
@@ -7,6 +7,12 @@ import {
   normalizeExecutionStatus,
   resolvePipelineExecutionIdentity,
 } from './notifier-predicates';
+import {
+  matchesTargetPipelineTags,
+  parseTargetPipelineTags,
+  resolvePipelineArn,
+  toPipelineTagMap,
+} from './target-pipeline-predicates';
 
 /**
  * EventBridge detail payload for CodePipeline execution state-change events.
@@ -128,8 +134,37 @@ const waitPipelineExecution = async (params: {
 };
 
 /**
+ * Returns whether the pipeline in the event matches the configured tag filters.
+ *
+ * @param event EventBridge STARTED event
+ * @param pipelineName pipeline name from the event detail
+ * @returns true when the pipeline should be notified
+ */
+const isTargetPipelineEvent = async (
+  event: CodePipelineExecutionStartedEvent,
+  pipelineName: string,
+): Promise<boolean> => {
+  const tagFilters = parseTargetPipelineTags(mustEnv('TARGET_PIPELINE_TAGS'));
+  const pipelineArn = resolvePipelineArn(
+    event.resources,
+    event.region,
+    event.account,
+    pipelineName,
+  );
+  if (!pipelineArn) {
+    throw new Error('Unable to resolve pipeline ARN for tag lookup');
+  }
+
+  const listed = await codepipeline.send(new ListTagsForResourceCommand({
+    resourceArn: pipelineArn,
+  }));
+
+  return matchesTargetPipelineTags(toPipelineTagMap(listed.tags), tagFilters);
+};
+
+/**
  * Lambda handler triggered by EventBridge when a pipeline execution transitions to STARTED.
- * It waits for the execution status until it reaches a terminal state or times out.
+ * It ignores pipelines that do not match `TARGET_PIPELINE_TAGS`, then waits for a terminal state.
  */
 export const handler = async (event: CodePipelineExecutionStartedEvent): Promise<void> => {
   const topicArn = mustEnv('SNS_TOPIC_ARN');
@@ -146,6 +181,10 @@ export const handler = async (event: CodePipelineExecutionStartedEvent): Promise
       note: 'Missing pipelineName or executionId in event.detail',
       event,
     });
+    return;
+  }
+
+  if (!await isTargetPipelineEvent(event, identity.pipelineName)) {
     return;
   }
 
