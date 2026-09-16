@@ -8,9 +8,10 @@ CDK construct that listens to **AWS CodePipeline execution STARTED** events via 
 ## Features
 
 - **EventBridge integration**: triggers on `CodePipeline Pipeline Execution State Change` with `state=STARTED` (customizable via `eventPattern`)
+- **Tag-based pipeline selection**: required `targetPipeline.tags` filters which pipelines are notified (`ListTagsForResource`; keys are AND, values are OR)
 - **SNS notifications**: publishes execution status transitions as JSON messages (`phase`: `eventbridge` / `wait`)
 - **Execution waiting**: calls `GetPipelineExecution` until a terminal state (`SUCCEEDED` / `FAILED` / `STOPPED` / `SUPERSEDED`) or timeout
-- **Configurable props**: reuse an existing SNS topic, adjust wait interval / max wait duration / Lambda timeout, and filter events
+- **Configurable props**: reuse an existing SNS topic, adjust wait interval / max wait duration / Lambda timeout, and optionally refine the EventBridge pattern
 - **No subscriptions by default**: the SNS topic is created (or reused), but subscriptions (email/HTTP/etc.) are intentionally not configured
 
 ## Installation
@@ -40,7 +41,16 @@ export class MyStack extends Stack {
   constructor(scope: Construct, id: string) {
     super(scope, id);
 
-    const notifier = new CodePipelineEventNotifier(this, 'CodePipelineEventNotifier');
+    const notifier = new CodePipelineEventNotifier(this, 'CodePipelineEventNotifier', {
+      targetPipeline: {
+        tags: [
+          {
+            key: 'Notify',
+            values: ['true'],
+          },
+        ],
+      },
+    });
 
     // Optionally subscribe to the topic created by the construct
     // notifier.topic.addSubscription(...);
@@ -66,12 +76,19 @@ export class MyStack extends Stack {
       waitInterval: Duration.seconds(30),
       maxWaitDuration: Duration.minutes(10),
       timeout: Duration.minutes(12),
+      targetPipeline: {
+        tags: [
+          {
+            key: 'Team',
+            values: ['platform', 'infra'],
+          },
+        ],
+      },
       eventPattern: {
         source: ['aws.codepipeline'],
         detailType: ['CodePipeline Pipeline Execution State Change'],
         detail: {
           state: ['STARTED'],
-          pipeline: ['my-pipeline'],
         },
       },
     });
@@ -83,6 +100,7 @@ export class MyStack extends Stack {
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
+| `targetPipeline` | `TargetPipeline` | *(required)* | Tag filters for pipelines that should notify. All tag keys must match; values within a key are OR |
 | `topic` | `sns.ITopic` | new topic | SNS topic to publish notifications to (also exposed as `notifier.topic`) |
 | `waitInterval` | `Duration` | `10 seconds` | Interval between `GetPipelineExecution` calls |
 | `maxWaitDuration` | `Duration` | `14 minutes` | Maximum wait duration before giving up |
@@ -92,6 +110,7 @@ export class MyStack extends Stack {
 The notifier Lambda uses these environment variables (set by the construct from props):
 
 - `SNS_TOPIC_ARN` (**required**): SNS topic ARN to publish notifications to
+- `TARGET_PIPELINE_TAGS` (**required**): JSON array of `{ key, values }` tag filters
 - `WAIT_INTERVAL_SECONDS` (default: `10`): wait interval in seconds
 - `MAX_WAIT_MINUTES` (default: `14`): maximum wait duration in minutes
 
