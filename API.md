@@ -11,7 +11,7 @@ Provisions an EventBridge rule that listens for CodePipeline execution STARTED e
 ```typescript
 import { CodePipelineEventNotifier } from 'codepipeline-event-notifier'
 
-new CodePipelineEventNotifier(scope: Construct, id: string, props?: CodePipelineEventNotifierProps)
+new CodePipelineEventNotifier(scope: Construct, id: string, props: CodePipelineEventNotifierProps)
 ```
 
 | **Name** | **Type** | **Description** |
@@ -38,7 +38,7 @@ the construct id.
 
 ---
 
-##### `props`<sup>Optional</sup> <a name="props" id="codepipeline-event-notifier.CodePipelineEventNotifier.Initializer.parameter.props"></a>
+##### `props`<sup>Required</sup> <a name="props" id="codepipeline-event-notifier.CodePipelineEventNotifier.Initializer.parameter.props"></a>
 
 - *Type:* <a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps">CodePipelineEventNotifierProps</a>
 
@@ -176,11 +176,24 @@ const codePipelineEventNotifierProps: CodePipelineEventNotifierProps = { ... }
 
 | **Name** | **Type** | **Description** |
 | --- | --- | --- |
+| <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.targetPipeline">targetPipeline</a></code> | <code><a href="#codepipeline-event-notifier.TargetPipeline">TargetPipeline</a></code> | Pipelines that should produce notifications, selected by resource tags. |
 | <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.eventPattern">eventPattern</a></code> | <code>aws-cdk-lib.aws_events.EventPattern</code> | EventBridge event pattern that triggers the notifier. |
 | <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.maxWaitDuration">maxWaitDuration</a></code> | <code>aws-cdk-lib.Duration</code> | Maximum duration to wait for execution state changes. |
 | <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.timeout">timeout</a></code> | <code>aws-cdk-lib.Duration</code> | Timeout for the notifier Lambda function. |
 | <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.topic">topic</a></code> | <code>aws-cdk-lib.aws_sns.ITopic</code> | SNS topic that receives CodePipeline execution notifications. |
 | <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.waitInterval">waitInterval</a></code> | <code>aws-cdk-lib.Duration</code> | Interval between `GetPipelineExecution` waits. |
+
+---
+
+##### `targetPipeline`<sup>Required</sup> <a name="targetPipeline" id="codepipeline-event-notifier.CodePipelineEventNotifierProps.property.targetPipeline"></a>
+
+```typescript
+public readonly targetPipeline: TargetPipeline;
+```
+
+- *Type:* <a href="#codepipeline-event-notifier.TargetPipeline">TargetPipeline</a>
+
+Pipelines that should produce notifications, selected by resource tags.
 
 ---
 
@@ -252,6 +265,85 @@ public readonly waitInterval: Duration;
 - *Default:* Duration.seconds(10)
 
 Interval between `GetPipelineExecution` waits.
+
+---
+
+### TargetPipeline <a name="TargetPipeline" id="codepipeline-event-notifier.TargetPipeline"></a>
+
+Selection criteria for pipelines that should trigger notifications.
+
+#### Initializer <a name="Initializer" id="codepipeline-event-notifier.TargetPipeline.Initializer"></a>
+
+```typescript
+import { TargetPipeline } from 'codepipeline-event-notifier'
+
+const targetPipeline: TargetPipeline = { ... }
+```
+
+#### Properties <a name="Properties" id="Properties"></a>
+
+| **Name** | **Type** | **Description** |
+| --- | --- | --- |
+| <code><a href="#codepipeline-event-notifier.TargetPipeline.property.tags">tags</a></code> | <code><a href="#codepipeline-event-notifier.TargetPipelineTag">TargetPipelineTag</a>[]</code> | Tag filters applied to CodePipeline resources. |
+
+---
+
+##### `tags`<sup>Required</sup> <a name="tags" id="codepipeline-event-notifier.TargetPipeline.property.tags"></a>
+
+```typescript
+public readonly tags: TargetPipelineTag[];
+```
+
+- *Type:* <a href="#codepipeline-event-notifier.TargetPipelineTag">TargetPipelineTag</a>[]
+
+Tag filters applied to CodePipeline resources.
+
+---
+
+### TargetPipelineTag <a name="TargetPipelineTag" id="codepipeline-event-notifier.TargetPipelineTag"></a>
+
+Tag filter for selecting CodePipeline pipelines.
+
+Keys across entries are AND; values within an entry are OR.
+
+#### Initializer <a name="Initializer" id="codepipeline-event-notifier.TargetPipelineTag.Initializer"></a>
+
+```typescript
+import { TargetPipelineTag } from 'codepipeline-event-notifier'
+
+const targetPipelineTag: TargetPipelineTag = { ... }
+```
+
+#### Properties <a name="Properties" id="Properties"></a>
+
+| **Name** | **Type** | **Description** |
+| --- | --- | --- |
+| <code><a href="#codepipeline-event-notifier.TargetPipelineTag.property.key">key</a></code> | <code>string</code> | Tag key that must be present on the pipeline. |
+| <code><a href="#codepipeline-event-notifier.TargetPipelineTag.property.values">values</a></code> | <code>string[]</code> | Accepted values for {@link key}. |
+
+---
+
+##### `key`<sup>Required</sup> <a name="key" id="codepipeline-event-notifier.TargetPipelineTag.property.key"></a>
+
+```typescript
+public readonly key: string;
+```
+
+- *Type:* string
+
+Tag key that must be present on the pipeline.
+
+---
+
+##### `values`<sup>Required</sup> <a name="values" id="codepipeline-event-notifier.TargetPipelineTag.property.values"></a>
+
+```typescript
+public readonly values: string[];
+```
+
+- *Type:* string[]
+
+Accepted values for {@link key}.
 
 ---
 
