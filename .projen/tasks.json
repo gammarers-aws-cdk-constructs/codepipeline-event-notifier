@@ -430,6 +430,7 @@
             "update",
             "@aws-sdk/client-codepipeline",
             "@aws-sdk/client-sns",
+            "@gammarers/projen-projects",
             "@stylistic/eslint-plugin",
             "@types/aws-lambda",
             "@types/jest",

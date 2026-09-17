@@ -13,6 +13,15 @@ export class CodePipelineEventNotifyStack extends Stack {
   constructor(scope: Construct, id: string) {
     super(scope, id);
 
-    new CodePipelineEventNotifier(this, 'CodePipelineEventNotifier');
+    new CodePipelineEventNotifier(this, 'CodePipelineEventNotifier', {
+      targetPipeline: {
+        tags: [
+          {
+            key: 'Notify',
+            values: ['true'],
+          },
+        ],
+      },
+    });
   }
 }

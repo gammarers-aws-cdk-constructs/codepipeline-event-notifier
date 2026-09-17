@@ -20,7 +20,7 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "9c32b74a11bf0d0e699e2910780d90dd3f6d108f1662d0a1647f6f459c3da855.zip",
+          "S3Key": "220583a66b8239341bed94a241de70b5623357d74a0d4dc674133ec2f1c2127c.zip",
         },
         "Description": "src/funcs/notifier.lambda.ts",
         "Environment": {
@@ -30,6 +30,7 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
             "SNS_TOPIC_ARN": {
               "Ref": "CodePipelineEventNotifierPipelineEventTopicAC48249D",
             },
+            "TARGET_PIPELINE_TAGS": "[{"key":"Notify","values":["true"]}]",
             "WAIT_INTERVAL_SECONDS": "10",
           },
         },
@@ -57,9 +58,31 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
               },
             },
             {
-              "Action": "codepipeline:GetPipelineExecution",
+              "Action": [
+                "codepipeline:GetPipelineExecution",
+                "codepipeline:ListTagsForResource",
+              ],
               "Effect": "Allow",
-              "Resource": "*",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":codepipeline:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":*",
+                  ],
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",

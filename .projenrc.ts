@@ -1,48 +1,20 @@
-import { awscdk, javascript, github } from 'projen';
-const project = new awscdk.AwsCdkConstructLibrary({
-  author: 'yicr',
-  authorAddress: 'yicr@users.noreply.github.com',
-  defaultReleaseBranch: 'main',
-  cdkVersion: '2.232.0',
-  typescriptVersion: '6.0.x',
-  jsiiVersion: '6.0.x',
-  name: 'codepipeline-event-notifier',
-  packageManager: javascript.NodePackageManager.NPM,
+import { ProjenCdkConstructLibrary } from '@gammarers/projen-projects';
+import { awscdk } from 'projen';
+const project = new ProjenCdkConstructLibrary({
   projenrcTs: true,
-  repositoryUrl: 'https://github.com/gammarers-aws-cdk-constructs/codepipeline-event-notifier.git',
-  description: 'CDK construct that listens to AWS CodePipeline execution STARTED events via EventBridge, invokes a Lambda notifier, and publishes execution state changes to an SNS topic.',
   releaseToNpm: true,
   npmTrustedPublishing: true,
-  npmAccess: javascript.NpmAccess.PUBLIC,
-  minNodeVersion: '20.0.0',
-  workflowNodeVersion: '24.x',
+  cdkVersion: '2.232.0',
+  name: 'codepipeline-event-notifier',
+  repository: 'https://github.com/gammarers-aws-cdk-constructs/codepipeline-event-notifier.git',
+  description: 'CDK construct that listens to AWS CodePipeline execution STARTED events via EventBridge, invokes a Lambda notifier, and publishes execution state changes to an SNS topic.',
   devDeps: [
+    '@gammarers/projen-projects@^0.2.4',
     '@types/aws-lambda@^8.10.162',
     '@aws-sdk/client-codepipeline@^3.1080.0',
     '@aws-sdk/client-sns@^3.1080.0',
     'strict-env-resolver@^0.5.1',
   ],
-  depsUpgradeOptions: {
-    workflowOptions: {
-      labels: ['auto-approve', 'auto-merge'],
-      schedule: javascript.UpgradeDependenciesSchedule.WEEKLY,
-    },
-  },
-  githubOptions: {
-    projenCredentials: github.GithubCredentials.fromApp({
-      permissions: {
-        pullRequests: github.workflows.AppPermission.WRITE,
-        contents: github.workflows.AppPermission.WRITE,
-        workflows: github.workflows.AppPermission.WRITE,
-      },
-    }),
-  },
-  autoApproveOptions: {
-    allowedUsernames: [
-      'gammarers-projen-upgrade-bot[bot]',
-      'yicr',
-    ],
-  },
   jestOptions: {
     extraCliOptions: ['--silent'],
   },

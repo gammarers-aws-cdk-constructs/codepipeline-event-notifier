@@ -41,6 +41,7 @@
   "devDependencies": {
     "@aws-sdk/client-codepipeline": "^3.1080.0",
     "@aws-sdk/client-sns": "^3.1080.0",
+    "@gammarers/projen-projects": "^0.2.4",
     "@stylistic/eslint-plugin": "^2",
     "@types/aws-lambda": "^8.10.162",
     "@types/jest": "^30.0.0",
