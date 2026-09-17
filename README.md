@@ -9,6 +9,7 @@ CDK construct that listens to **AWS CodePipeline execution STARTED** events via 
 
 - **EventBridge integration**: triggers on `CodePipeline Pipeline Execution State Change` with `state=STARTED` (customizable via `eventPattern`)
 - **Tag-based pipeline selection**: required `targetPipeline.tags` filters which pipelines are notified (`ListTagsForResource`; keys are AND, values are OR)
+- **Least-privilege IAM**: CodePipeline API access is scoped to this account and region, or to `targetPipeline.arns` when set
 - **SNS notifications**: publishes execution status transitions as JSON messages (`phase`: `eventbridge` / `wait`)
 - **Execution waiting**: calls `GetPipelineExecution` until a terminal state (`SUCCEEDED` / `FAILED` / `STOPPED` / `SUPERSEDED`) or timeout
 - **Configurable props**: reuse an existing SNS topic, adjust wait interval / max wait duration / Lambda timeout, and optionally refine the EventBridge pattern
@@ -83,6 +84,9 @@ export class MyStack extends Stack {
             values: ['platform', 'infra'],
           },
         ],
+        arns: [
+          'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline',
+        ],
       },
       eventPattern: {
         source: ['aws.codepipeline'],
@@ -100,7 +104,7 @@ export class MyStack extends Stack {
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
-| `targetPipeline` | `TargetPipeline` | *(required)* | Tag filters for pipelines that should notify. All tag keys must match; values within a key are OR |
+| `targetPipeline` | `TargetPipeline` | *(required)* | Tag filters (`tags`) for pipelines that should notify. Optional `arns` restrict IAM and skip other pipelines. Default IAM is this account and region |
 | `topic` | `sns.ITopic` | new topic | SNS topic to publish notifications to (also exposed as `notifier.topic`) |
 | `waitInterval` | `Duration` | `10 seconds` | Interval between `GetPipelineExecution` calls |
 | `maxWaitDuration` | `Duration` | `14 minutes` | Maximum wait duration before giving up |
@@ -111,6 +115,7 @@ The notifier Lambda uses these environment variables (set by the construct from 
 
 - `SNS_TOPIC_ARN` (**required**): SNS topic ARN to publish notifications to
 - `TARGET_PIPELINE_TAGS` (**required**): JSON array of `{ key, values }` tag filters
+- `TARGET_PIPELINE_ARNS` (optional): JSON array of pipeline ARNs used as an allowlist when `targetPipeline.arns` is set
 - `WAIT_INTERVAL_SECONDS` (default: `10`): wait interval in seconds
 - `MAX_WAIT_MINUTES` (default: `14`): maximum wait duration in minutes
 
