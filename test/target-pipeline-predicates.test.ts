@@ -1,3 +1,4 @@
+import type { PipelineTagFilter } from '../src/funcs/target-pipeline-predicates';
 import {
   isAllowedPipelineArn,
   isPipelineTagFilterList,
@@ -89,7 +90,12 @@ describe('toPipelineTagMap', () => {
 });
 
 describe('matchesTargetPipelineTags', () => {
-  it.each([
+  it.each<{
+    name: string;
+    pipelineTags: { readonly [key: string]: string };
+    filters: readonly PipelineTagFilter[];
+    expected: boolean;
+  }>([
     {
       name: 'single matching value',
       pipelineTags: { Notify: 'true' },

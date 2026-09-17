@@ -20,7 +20,7 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "5723a57250fd2006970a9c9f37f74eb9593e8c81be74a17a815105fdcfe90bcd.zip",
+          "S3Key": "220583a66b8239341bed94a241de70b5623357d74a0d4dc674133ec2f1c2127c.zip",
         },
         "Description": "src/funcs/notifier.lambda.ts",
         "Environment": {
