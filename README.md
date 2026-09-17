@@ -1,7 +1,11 @@
-# CodePipeline Event Notifier
+# CodePipeline Event Notifier (CDK v2)
 
-[![npm version](https://img.shields.io/npm/v/codepipeline-event-notifier.svg)](https://www.npmjs.com/package/codepipeline-event-notifier)
-[![license](https://img.shields.io/npm/l/codepipeline-event-notifier.svg)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/codepipeline-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-event-notifier)
+[![license](https://img.shields.io/npm/l/codepipeline-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-event-notifier)
+[![Node.js](https://img.shields.io/node/v/codepipeline-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-event-notifier)
+[![build](https://img.shields.io/github/actions/workflow/status/gammarers-aws-cdk-constructs/codepipeline-event-notifier/build.yml?branch=main&label=build&style=flat-square)](https://github.com/gammarers-aws-cdk-constructs/codepipeline-event-notifier/actions/workflows/build.yml)
+
+[![View on Construct Hub](https://constructs.dev/badge?package=codepipeline-event-notifier)](https://constructs.dev/packages/codepipeline-event-notifier)
 
 CDK construct that listens to **AWS CodePipeline execution STARTED** events via EventBridge, invokes a Lambda notifier, and publishes execution state changes to an SNS topic.
 
@@ -15,6 +19,13 @@ CDK construct that listens to **AWS CodePipeline execution STARTED** events via 
 - **Configurable props**: reuse an existing SNS topic, adjust wait interval / max wait duration / Lambda timeout, and optionally refine the EventBridge pattern
 - **No subscriptions by default**: the SNS topic is created (or reused), but subscriptions (email/HTTP/etc.) are intentionally not configured
 
+## How it works
+
+1. EventBridge matches a CodePipeline execution state-change event (default: `state=STARTED`) and invokes the notifier Lambda.
+2. The Lambda resolves the pipeline ARN, then keeps the event only when `targetPipeline.tags` match (`ListTagsForResource`; keys are AND, values are OR) and, if set, `targetPipeline.arns` includes the pipeline.
+3. It publishes an SNS message with `phase: eventbridge`, then calls `GetPipelineExecution` until a terminal status (`SUCCEEDED` / `FAILED` / `STOPPED` / `SUPERSEDED`) or `maxWaitDuration`.
+4. Each status change (and timeout) is published with `phase: wait`. Subscribe to `notifier.topic`; this construct does not add subscriptions.
+
 ## Installation
 
 ### npm
@@ -27,6 +38,12 @@ npm install codepipeline-event-notifier
 
 ```bash
 yarn add codepipeline-event-notifier
+```
+
+### pnpm
+
+```bash
+pnpm add codepipeline-event-notifier
 ```
 
 ## Usage
@@ -118,6 +135,10 @@ The notifier Lambda uses these environment variables (set by the construct from 
 - `TARGET_PIPELINE_ARNS` (optional): JSON array of pipeline ARNs used as an allowlist when `targetPipeline.arns` is set
 - `WAIT_INTERVAL_SECONDS` (default: `10`): wait interval in seconds
 - `MAX_WAIT_MINUTES` (default: `14`): maximum wait duration in minutes
+
+## API
+
+See the [API reference](./API.md).
 
 ## Requirements
 
