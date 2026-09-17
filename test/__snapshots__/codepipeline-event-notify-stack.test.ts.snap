@@ -63,7 +63,26 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
                 "codepipeline:ListTagsForResource",
               ],
               "Effect": "Allow",
-              "Resource": "*",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":codepipeline:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":*",
+                  ],
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",

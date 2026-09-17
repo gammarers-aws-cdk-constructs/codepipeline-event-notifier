@@ -1,4 +1,4 @@
-import { Duration, aws_events as events, aws_events_targets as targets, aws_iam as iam, aws_sns as sns } from 'aws-cdk-lib';
+import { Duration, Stack, aws_events as events, aws_events_targets as targets, aws_iam as iam, aws_sns as sns } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { NotifierFunction } from '../funcs/notifier-function';
 
@@ -26,6 +26,14 @@ export interface TargetPipeline {
    * Tag filters applied to CodePipeline resources.
    */
   readonly tags: TargetPipelineTag[];
+
+  /**
+   * Pipeline ARNs used as IAM resources for `GetPipelineExecution` and `ListTagsForResource`.
+   * When set, the notifier also ignores STARTED events whose pipeline ARN is not in this list.
+   *
+   * @default all CodePipeline resources in this account and region
+   */
+  readonly arns?: string[];
 }
 
 /**
@@ -120,6 +128,38 @@ const resolveTargetPipelineTags = (targetPipeline: TargetPipeline): TargetPipeli
 };
 
 /**
+ * Validates optional pipeline ARNs used for IAM and runtime allowlisting.
+ *
+ * @param arns pipeline ARNs from construct props
+ * @returns normalized ARNs, or undefined when omitted
+ */
+const resolveTargetPipelineArns = (arns: string[] | undefined): string[] | undefined => {
+  if (arns === undefined) {
+    return undefined;
+  }
+  if (arns.length === 0) {
+    throw new Error('targetPipeline.arns must be a non-empty array of ARNs');
+  }
+
+  const seenArns = new Set<string>();
+  const normalized: string[] = [];
+
+  for (const rawArn of arns) {
+    const arn = rawArn.trim();
+    if (!arn) {
+      throw new Error('targetPipeline.arns must be a non-empty array of ARNs');
+    }
+    if (seenArns.has(arn)) {
+      throw new Error(`targetPipeline.arns contains duplicate ARN: ${arn}`);
+    }
+    seenArns.add(arn);
+    normalized.push(arn);
+  }
+
+  return normalized;
+};
+
+/**
  * Provisions an EventBridge rule that listens for CodePipeline execution STARTED events,
  * then invokes a notifier Lambda which publishes execution state changes to an SNS topic.
  */
@@ -138,6 +178,13 @@ export class CodePipelineEventNotifier extends Construct {
     super(scope, id);
 
     const targetPipelineTags = resolveTargetPipelineTags(props.targetPipeline);
+    const targetPipelineArns = resolveTargetPipelineArns(props.targetPipeline.arns);
+    const pipelineIamResources = targetPipelineArns ?? [
+      Stack.of(this).formatArn({
+        service: 'codepipeline',
+        resource: '*',
+      }),
+    ];
 
     this.topic = props.topic ?? new sns.Topic(this, 'PipelineEventTopic');
 
@@ -158,6 +205,7 @@ export class CodePipelineEventNotifier extends Construct {
         WAIT_INTERVAL_SECONDS: String(waitInterval.toSeconds()),
         MAX_WAIT_MINUTES: String(maxWaitDuration.toMinutes({ integral: false })),
         TARGET_PIPELINE_TAGS: JSON.stringify(targetPipelineTags),
+        ...(targetPipelineArns ? { TARGET_PIPELINE_ARNS: JSON.stringify(targetPipelineArns) } : {}),
       },
       timeout,
     });
@@ -169,7 +217,7 @@ export class CodePipelineEventNotifier extends Construct {
         'codepipeline:GetPipelineExecution',
         'codepipeline:ListTagsForResource',
       ],
-      resources: ['*'],
+      resources: pipelineIamResources,
     }));
 
     // Trigger the notifier when matching CodePipeline execution events arrive.

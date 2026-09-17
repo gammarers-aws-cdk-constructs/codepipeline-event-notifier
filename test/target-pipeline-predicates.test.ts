@@ -1,7 +1,9 @@
 import {
+  isAllowedPipelineArn,
   isPipelineTagFilterList,
   matchesTargetPipelineTags,
   normalizeTagFilters,
+  parseAllowedPipelineArns,
   parseTargetPipelineTags,
   resolvePipelineArn,
   toPipelineTagMap,
@@ -163,5 +165,67 @@ describe('resolvePipelineArn', () => {
     },
   ])('$name', ({ resources, region, account, pipelineName, expected }) => {
     expect(resolvePipelineArn(resources, region, account, pipelineName)).toBe(expected);
+  });
+});
+
+describe('parseAllowedPipelineArns', () => {
+  it('returns undefined when the env value is missing or blank', () => {
+    expect(parseAllowedPipelineArns(undefined)).toBeUndefined();
+    expect(parseAllowedPipelineArns('')).toBeUndefined();
+    expect(parseAllowedPipelineArns('   ')).toBeUndefined();
+  });
+
+  it('parses and trims ARNs', () => {
+    expect(parseAllowedPipelineArns(JSON.stringify([
+      ' arn:aws:codepipeline:us-east-1:123456789012:my-pipeline ',
+    ]))).toEqual([
+      'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline',
+    ]);
+  });
+
+  it.each([
+    { name: 'invalid JSON', raw: '{', message: 'TARGET_PIPELINE_ARNS must be valid JSON' },
+    {
+      name: 'non-array JSON',
+      raw: JSON.stringify('arn:aws:codepipeline:us-east-1:123456789012:my-pipeline'),
+      message: 'TARGET_PIPELINE_ARNS must be a non-empty array of strings',
+    },
+    {
+      name: 'empty array',
+      raw: '[]',
+      message: 'TARGET_PIPELINE_ARNS must be a non-empty array of strings',
+    },
+    {
+      name: 'empty string entry',
+      raw: JSON.stringify(['']),
+      message: 'TARGET_PIPELINE_ARNS must be a non-empty array of strings',
+    },
+  ])('throws for $name', ({ raw, message }) => {
+    expect(() => parseAllowedPipelineArns(raw)).toThrow(message);
+  });
+});
+
+describe('isAllowedPipelineArn', () => {
+  it.each([
+    {
+      name: 'no allowlist',
+      pipelineArn: 'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline',
+      allowedArns: undefined,
+      expected: true,
+    },
+    {
+      name: 'listed ARN',
+      pipelineArn: 'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline',
+      allowedArns: ['arn:aws:codepipeline:us-east-1:123456789012:my-pipeline'],
+      expected: true,
+    },
+    {
+      name: 'unlisted ARN',
+      pipelineArn: 'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline',
+      allowedArns: ['arn:aws:codepipeline:us-east-1:123456789012:other-pipeline'],
+      expected: false,
+    },
+  ])('$name', ({ pipelineArn, allowedArns, expected }) => {
+    expect(isAllowedPipelineArn(pipelineArn, allowedArns)).toBe(expected);
   });
 });

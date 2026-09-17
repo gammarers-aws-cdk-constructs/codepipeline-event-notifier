@@ -39,7 +39,20 @@ describe('CodePipelineEventNotifier', () => {
               'codepipeline:ListTagsForResource',
             ],
             Effect: 'Allow',
-            Resource: '*',
+            Resource: {
+              'Fn::Join': [
+                '',
+                [
+                  'arn:',
+                  { Ref: 'AWS::Partition' },
+                  ':codepipeline:',
+                  { Ref: 'AWS::Region' },
+                  ':',
+                  { Ref: 'AWS::AccountId' },
+                  ':*',
+                ],
+              ],
+            },
           }),
         ]),
       }),
@@ -108,6 +121,44 @@ describe('CodePipelineEventNotifier', () => {
     });
   });
 
+  it('scopes IAM and Lambda allowlist to targetPipeline.arns', () => {
+    const stack = new Stack(new App(), 'Arns');
+    const pipelineArns = [
+      'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline',
+      'arn:aws:codepipeline:us-east-1:123456789012:other-pipeline',
+    ];
+
+    new CodePipelineEventNotifier(stack, 'Notifier', {
+      targetPipeline: {
+        tags: defaultTargetPipeline.tags,
+        arns: pipelineArns,
+      },
+    });
+
+    const template = Template.fromStack(stack);
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: {
+        Variables: Match.objectLike({
+          TARGET_PIPELINE_ARNS: JSON.stringify(pipelineArns),
+        }),
+      },
+    });
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: Match.objectLike({
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Action: [
+              'codepipeline:GetPipelineExecution',
+              'codepipeline:ListTagsForResource',
+            ],
+            Effect: 'Allow',
+            Resource: pipelineArns,
+          }),
+        ]),
+      }),
+    });
+  });
+
   it.each([
     {
       name: 'empty tags',
@@ -146,12 +197,47 @@ describe('CodePipelineEventNotifier', () => {
     })).toThrow('targetPipeline.tags contains duplicate key: Notify');
   });
 
+  it.each([
+    {
+      name: 'empty arns',
+      arns: [] as string[],
+    },
+    {
+      name: 'empty ARN string',
+      arns: [''],
+    },
+  ])('rejects $name', ({ arns }) => {
+    const stack = new Stack(new App(), 'InvalidArns');
+
+    expect(() => new CodePipelineEventNotifier(stack, 'Notifier', {
+      targetPipeline: {
+        tags: defaultTargetPipeline.tags,
+        arns,
+      },
+    })).toThrow('targetPipeline.arns must be a non-empty array of ARNs');
+  });
+
+  it('rejects duplicate pipeline ARNs', () => {
+    const stack = new Stack(new App(), 'DuplicateArns');
+    const pipelineArn = 'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline';
+
+    expect(() => new CodePipelineEventNotifier(stack, 'Notifier', {
+      targetPipeline: {
+        tags: defaultTargetPipeline.tags,
+        arns: [pipelineArn, pipelineArn],
+      },
+    })).toThrow(`targetPipeline.arns contains duplicate ARN: ${pipelineArn}`);
+  });
+
   it('trims tag keys and values before storing them', () => {
     const stack = new Stack(new App(), 'Trim');
     new CodePipelineEventNotifier(stack, 'Notifier', {
       targetPipeline: {
         tags: [
           { key: ' Notify ', values: [' true '] },
+        ],
+        arns: [
+          ' arn:aws:codepipeline:us-east-1:123456789012:my-pipeline ',
         ],
       },
     });
@@ -162,6 +248,9 @@ describe('CodePipelineEventNotifier', () => {
         Variables: Match.objectLike({
           TARGET_PIPELINE_TAGS: JSON.stringify([
             { key: 'Notify', values: ['true'] },
+          ]),
+          TARGET_PIPELINE_ARNS: JSON.stringify([
+            'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline',
           ]),
         }),
       },

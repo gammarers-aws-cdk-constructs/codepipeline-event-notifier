@@ -8,7 +8,9 @@ import {
   resolvePipelineExecutionIdentity,
 } from './notifier-predicates';
 import {
+  isAllowedPipelineArn,
   matchesTargetPipelineTags,
+  parseAllowedPipelineArns,
   parseTargetPipelineTags,
   resolvePipelineArn,
   toPipelineTagMap,
@@ -155,6 +157,11 @@ const isTargetPipelineEvent = async (
     throw new Error('Unable to resolve pipeline ARN for tag lookup');
   }
 
+  const allowedArns = parseAllowedPipelineArns(process.env.TARGET_PIPELINE_ARNS);
+  if (!isAllowedPipelineArn(pipelineArn, allowedArns)) {
+    return false;
+  }
+
   const listed = await codepipeline.send(new ListTagsForResourceCommand({
     resourceArn: pipelineArn,
   }));
@@ -164,7 +171,7 @@ const isTargetPipelineEvent = async (
 
 /**
  * Lambda handler triggered by EventBridge when a pipeline execution transitions to STARTED.
- * It ignores pipelines that do not match `TARGET_PIPELINE_TAGS`, then waits for a terminal state.
+ * It ignores pipelines that do not match `TARGET_PIPELINE_TAGS` (and optional `TARGET_PIPELINE_ARNS`), then waits for a terminal state.
  */
 export const handler = async (event: CodePipelineExecutionStartedEvent): Promise<void> => {
   const topicArn = mustEnv('SNS_TOPIC_ARN');

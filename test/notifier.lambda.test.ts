@@ -103,6 +103,7 @@ describe('notifier.lambda handler', () => {
     delete process.env.WAIT_INTERVAL_SECONDS;
     delete process.env.MAX_WAIT_MINUTES;
     delete process.env.TARGET_PIPELINE_TAGS;
+    delete process.env.TARGET_PIPELINE_ARNS;
   });
 
   describe('missing event.detail identity', () => {
@@ -132,6 +133,30 @@ describe('notifier.lambda handler', () => {
         }),
       ]);
     });
+  });
+
+  it('ignores executions when the pipeline ARN is not allowlisted', async () => {
+    process.env.TARGET_PIPELINE_ARNS = JSON.stringify([
+      'arn:aws:codepipeline:us-east-1:123456789012:other-pipeline',
+    ]);
+
+    await handler(makeEvent());
+
+    expect(mockListTagsSend).not.toHaveBeenCalled();
+    expect(mockGetExecutionSend).not.toHaveBeenCalled();
+    expect(publishedPayloads()).toEqual([]);
+  });
+
+  it('looks up tags when the pipeline ARN is allowlisted', async () => {
+    process.env.TARGET_PIPELINE_ARNS = JSON.stringify([PIPELINE_ARN]);
+    mockGetExecutionSend.mockResolvedValueOnce({
+      pipelineExecution: { status: 'Succeeded' },
+    });
+
+    await handler(makeEvent());
+
+    expect(mockListTagsSend).toHaveBeenCalledTimes(1);
+    expect(mockGetExecutionSend).toHaveBeenCalledTimes(1);
   });
 
   it('ignores executions when pipeline tags do not match', async () => {

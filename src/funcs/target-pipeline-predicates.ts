@@ -188,3 +188,68 @@ export const resolvePipelineArn = (
 
   return `arn:aws:codepipeline:${region}:${account}:${pipelineName}`;
 };
+
+/**
+ * Returns whether `value` is a non-empty list of non-empty strings.
+ *
+ * @param value unknown JSON value
+ * @returns true when the value is a string list
+ */
+export const isNonEmptyStringList = (value: unknown): value is string[] => {
+  if (!Array.isArray(value) || value.length === 0) {
+    return false;
+  }
+
+  for (const item of value) {
+    if (!isNonEmptyString(item)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+/**
+ * Parses optional `TARGET_PIPELINE_ARNS` JSON into an ARN allowlist.
+ *
+ * @param raw JSON string from the environment, or undefined when unset
+ * @returns normalized ARNs, or undefined when the allowlist is not configured
+ * @throws when the JSON is invalid or not a string list
+ */
+export const parseAllowedPipelineArns = (raw: string | undefined): string[] | undefined => {
+  if (raw === undefined || raw.trim() === '') {
+    return undefined;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('TARGET_PIPELINE_ARNS must be valid JSON');
+  }
+
+  if (!isNonEmptyStringList(parsed)) {
+    throw new Error('TARGET_PIPELINE_ARNS must be a non-empty array of strings');
+  }
+
+  return parsed.map((arn) => arn.trim());
+};
+
+/**
+ * Returns whether a pipeline ARN is allowed when an allowlist is configured.
+ *
+ * @param pipelineArn resolved pipeline ARN
+ * @param allowedArns optional allowlist
+ * @returns true when no allowlist is set, or the ARN is listed
+ */
+export const isAllowedPipelineArn = (
+  pipelineArn: string,
+  allowedArns: readonly string[] | undefined,
+): boolean => {
+  if (!allowedArns) {
+    return true;
+  }
+
+  return allowedArns.includes(pipelineArn);
+};
+
