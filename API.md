@@ -285,6 +285,7 @@ const targetPipeline: TargetPipeline = { ... }
 | **Name** | **Type** | **Description** |
 | --- | --- | --- |
 | <code><a href="#codepipeline-event-notifier.TargetPipeline.property.tags">tags</a></code> | <code><a href="#codepipeline-event-notifier.TargetPipelineTag">TargetPipelineTag</a>[]</code> | Tag filters applied to CodePipeline resources. |
+| <code><a href="#codepipeline-event-notifier.TargetPipeline.property.arns">arns</a></code> | <code>string[]</code> | Pipeline ARNs used as IAM resources for `GetPipelineExecution` and `ListTagsForResource`. |
 
 ---
 
@@ -297,6 +298,21 @@ public readonly tags: TargetPipelineTag[];
 - *Type:* <a href="#codepipeline-event-notifier.TargetPipelineTag">TargetPipelineTag</a>[]
 
 Tag filters applied to CodePipeline resources.
+
+---
+
+##### `arns`<sup>Optional</sup> <a name="arns" id="codepipeline-event-notifier.TargetPipeline.property.arns"></a>
+
+```typescript
+public readonly arns: string[];
+```
+
+- *Type:* string[]
+- *Default:* all CodePipeline resources in this account and region
+
+Pipeline ARNs used as IAM resources for `GetPipelineExecution` and `ListTagsForResource`.
+
+When set, the notifier also ignores STARTED events whose pipeline ARN is not in this list.
 
 ---
 
