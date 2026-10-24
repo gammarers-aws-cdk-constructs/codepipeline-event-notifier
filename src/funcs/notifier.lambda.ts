@@ -192,7 +192,13 @@ const isTargetPipelineEvent = async (
     throw new Error('Unable to resolve pipeline ARN for tag lookup');
   }
 
-  const allowedArns = parseAllowedPipelineArns(process.env[ENV_TARGET_PIPELINE_ARNS]);
+  const targetPipelineArnsRaw = StrictEnvResolver.resolve(ENV_TARGET_PIPELINE_ARNS, StrictEnvType.String, {
+    default: '',
+    trim: true,
+  });
+  const allowedArns = parseAllowedPipelineArns(
+    targetPipelineArnsRaw === '' ? undefined : targetPipelineArnsRaw,
+  );
   if (!isAllowedPipelineArn(pipelineArn, allowedArns)) {
     return false;
   }

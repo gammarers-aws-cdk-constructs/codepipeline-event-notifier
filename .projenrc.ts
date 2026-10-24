@@ -14,7 +14,7 @@ const project = new ProjenCdkConstructLibrary({
     '@aws-sdk/client-sns@^3.1080.0',
     '@aws/durable-execution-sdk-js@^2.7.1',
     '@aws/durable-execution-sdk-js-testing@^1.3.1',
-    'strict-env-resolver@^0.5.1',
+    'strict-env-resolver@^0.8.1',
   ],
 });
 project.synth();
