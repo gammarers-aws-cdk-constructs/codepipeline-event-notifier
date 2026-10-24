@@ -29,6 +29,26 @@ export const isTerminalExecutionStatus = (status: string): boolean => (
 );
 
 /**
+ * Resolves how many GetPipelineExecution attempts fit into the max wait window.
+ *
+ * @param waitIntervalSeconds interval between checks
+ * @param maxWaitMinutes maximum wait duration
+ * @returns at least one attempt
+ */
+export const resolveMaxAttempts = (waitIntervalSeconds: number, maxWaitMinutes: number): number =>
+  Math.max(1, Math.ceil((maxWaitMinutes * 60) / waitIntervalSeconds));
+
+/**
+ * Returns whether another wait interval should run after the current attempt.
+ *
+ * @param attempt zero-based attempt index that just finished
+ * @param maxAttempts total attempts allowed
+ * @returns true when a subsequent GetPipelineExecution check should run
+ */
+export const hasMoreWaitAttempts = (attempt: number, maxAttempts: number): boolean =>
+  attempt + 1 < maxAttempts;
+
+/**
  * Resolves pipeline/execution identifiers from EventBridge detail fields.
  *
  * @param pipelineName pipeline name from the event detail

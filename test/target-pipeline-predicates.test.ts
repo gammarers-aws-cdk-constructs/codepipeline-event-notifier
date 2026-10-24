@@ -1,4 +1,4 @@
-import type { PipelineTagFilter } from '../src/funcs/target-pipeline-predicates';
+import type { PipelineTagFilter } from '../src/funcs/core/target-pipeline-predicates';
 import {
   isAllowedPipelineArn,
   isPipelineTagFilterList,
@@ -8,7 +8,7 @@ import {
   parseTargetPipelineTags,
   resolvePipelineArn,
   toPipelineTagMap,
-} from '../src/funcs/target-pipeline-predicates';
+} from '../src/funcs/core/target-pipeline-predicates';
 
 describe('isPipelineTagFilterList', () => {
   it.each([

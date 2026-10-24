@@ -3,4 +3,4 @@ export {
   CodePipelineEventNotifierProps,
   TargetPipeline,
   TargetPipelineTag,
-} from './constructs/codepipeline-event-notifier';
+} from './codepipeline-event-notifier';

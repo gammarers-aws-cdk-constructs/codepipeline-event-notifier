@@ -20,7 +20,7 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "220583a66b8239341bed94a241de70b5623357d74a0d4dc674133ec2f1c2127c.zip",
+          "S3Key": "4c8842899f2e7667b7cf89f846a264344c74a747d60cb601163a4379e36ea2df.zip",
         },
         "Description": "src/funcs/notifier.lambda.ts",
         "DurableConfig": {
@@ -57,7 +57,7 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "CodePipelineEventNotifierNotifierFunctionCurrentVersionA8DD6EDC381e5442ea738a12339b9738fea12a59",
+            "CodePipelineEventNotifierNotifierFunctionCurrentVersionA8DD6EDCf54fa8003109ead0daec7b7f5615f086",
             "Version",
           ],
         },
@@ -65,7 +65,7 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "CodePipelineEventNotifierNotifierFunctionCurrentVersionA8DD6EDC381e5442ea738a12339b9738fea12a59": {
+    "CodePipelineEventNotifierNotifierFunctionCurrentVersionA8DD6EDCf54fa8003109ead0daec7b7f5615f086": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },

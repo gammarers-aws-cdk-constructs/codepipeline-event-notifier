@@ -1,8 +1,10 @@
 import {
+  hasMoreWaitAttempts,
   isTerminalExecutionStatus,
   normalizeExecutionStatus,
+  resolveMaxAttempts,
   resolvePipelineExecutionIdentity,
-} from '../src/funcs/notifier-predicates';
+} from '../src/funcs/core/notifier-predicates';
 
 describe('normalizeExecutionStatus', () => {
   it.each([
@@ -26,6 +28,35 @@ describe('isTerminalExecutionStatus', () => {
     { status: 'UNKNOWN', expected: false },
   ])('returns $expected for $status', ({ status, expected }) => {
     expect(isTerminalExecutionStatus(status)).toBe(expected);
+  });
+});
+
+describe('resolveMaxAttempts', () => {
+  it.each([
+    { waitIntervalSeconds: 10, maxWaitMinutes: 14, expected: 84 },
+    { waitIntervalSeconds: 30, maxWaitMinutes: 1, expected: 2 },
+    { waitIntervalSeconds: 60, maxWaitMinutes: 1, expected: 1 },
+    { waitIntervalSeconds: 120, maxWaitMinutes: 1, expected: 1 },
+  ])('returns $expected for interval=$waitIntervalSeconds max=$maxWaitMinutes', ({
+    waitIntervalSeconds,
+    maxWaitMinutes,
+    expected,
+  }) => {
+    expect(resolveMaxAttempts(waitIntervalSeconds, maxWaitMinutes)).toBe(expected);
+  });
+});
+
+describe('hasMoreWaitAttempts', () => {
+  it.each([
+    { attempt: 0, maxAttempts: 2, expected: true },
+    { attempt: 1, maxAttempts: 2, expected: false },
+    { attempt: 0, maxAttempts: 1, expected: false },
+  ])('returns $expected for attempt=$attempt maxAttempts=$maxAttempts', ({
+    attempt,
+    maxAttempts,
+    expected,
+  }) => {
+    expect(hasMoreWaitAttempts(attempt, maxAttempts)).toBe(expected);
   });
 });
 

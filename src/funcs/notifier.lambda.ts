@@ -4,10 +4,12 @@ import { PublishCommand, SNSClient } from '@aws-sdk/client-sns';
 import type { EventBridgeEvent } from 'aws-lambda';
 import { StrictEnvResolver, StrictEnvType } from 'strict-env-resolver';
 import {
+  hasMoreWaitAttempts,
   isTerminalExecutionStatus,
   normalizeExecutionStatus,
+  resolveMaxAttempts,
   resolvePipelineExecutionIdentity,
-} from './notifier-predicates';
+} from './core/notifier-predicates';
 import {
   isAllowedPipelineArn,
   matchesTargetPipelineTags,
@@ -15,7 +17,16 @@ import {
   parseTargetPipelineTags,
   resolvePipelineArn,
   toPipelineTagMap,
-} from './target-pipeline-predicates';
+} from './core/target-pipeline-predicates';
+import {
+  DEFAULT_MAX_WAIT_MINUTES,
+  DEFAULT_WAIT_INTERVAL_SECONDS,
+  ENV_MAX_WAIT_MINUTES,
+  ENV_SNS_TOPIC_ARN,
+  ENV_TARGET_PIPELINE_ARNS,
+  ENV_TARGET_PIPELINE_TAGS,
+  ENV_WAIT_INTERVAL_SECONDS,
+} from '../settings/consts';
 
 /**
  * EventBridge detail payload for CodePipeline execution state-change events.
@@ -36,24 +47,23 @@ type CodePipelineExecutionStartedEvent = EventBridgeEvent<
 >;
 
 /**
+ * Note published when waiting ends without a terminal execution status.
+ */
+const WAIT_TIMEOUT_NOTE = 'Waiting timed out before terminal state.';
+
+/**
  * SNS client used to publish notifications.
  */
-const sns = new SNSClient({});
+const sns = new SNSClient({
+  maxAttempts: 3,
+});
 
 /**
  * CodePipeline client used to wait for execution state changes.
  */
-const codepipeline = new CodePipelineClient({});
-
-/**
- * Default wait interval in seconds when the env value is missing or invalid.
- */
-const DEFAULT_WAIT_INTERVAL_SECONDS = 10;
-
-/**
- * Default maximum wait duration in minutes when the env value is missing or invalid.
- */
-const DEFAULT_MAX_WAIT_MINUTES = 14;
+const codepipeline = new CodePipelineClient({
+  maxAttempts: 3,
+});
 
 /**
  * Reads a required environment variable.
@@ -68,13 +78,6 @@ const publish = async (topicArn: string, payload: unknown): Promise<void> => {
     TopicArn: topicArn,
     Message: JSON.stringify(payload),
   }));
-};
-
-/**
- * Resolves how many GetPipelineExecution attempts fit into the max wait window.
- */
-const resolveMaxAttempts = (waitIntervalSeconds: number, maxWaitMinutes: number): number => {
-  return Math.max(1, Math.ceil((maxWaitMinutes * 60) / waitIntervalSeconds));
 };
 
 /**
@@ -101,6 +104,7 @@ const waitPipelineExecution = async (params: {
 
   const maxAttempts = resolveMaxAttempts(waitIntervalSeconds, maxWaitMinutes);
   let lastStatus: string | undefined;
+  let reachedTerminal = false;
 
   await durable.step('publish-started', async () => {
     await publish(topicArn, {
@@ -138,14 +142,19 @@ const waitPipelineExecution = async (params: {
     }
 
     if (isTerminalExecutionStatus(status)) {
-      return;
+      reachedTerminal = true;
+      break;
     }
 
-    if (attempt + 1 >= maxAttempts) {
+    if (!hasMoreWaitAttempts(attempt, maxAttempts)) {
       break;
     }
 
     await durable.wait(`wait-${attempt}`, { seconds: waitIntervalSeconds });
+  }
+
+  if (reachedTerminal) {
+    return;
   }
 
   await durable.step('publish-timeout', async () => {
@@ -156,7 +165,7 @@ const waitPipelineExecution = async (params: {
       executionId,
       observedState: lastStatus ?? 'UNKNOWN',
       observedAt: new Date().toISOString(),
-      note: 'Waiting timed out before terminal state.',
+      note: WAIT_TIMEOUT_NOTE,
     });
   });
 };
@@ -172,7 +181,7 @@ const isTargetPipelineEvent = async (
   event: CodePipelineExecutionStartedEvent,
   pipelineName: string,
 ): Promise<boolean> => {
-  const tagFilters = parseTargetPipelineTags(mustEnv('TARGET_PIPELINE_TAGS'));
+  const tagFilters = parseTargetPipelineTags(mustEnv(ENV_TARGET_PIPELINE_TAGS));
   const pipelineArn = resolvePipelineArn(
     event.resources,
     event.region,
@@ -183,7 +192,7 @@ const isTargetPipelineEvent = async (
     throw new Error('Unable to resolve pipeline ARN for tag lookup');
   }
 
-  const allowedArns = parseAllowedPipelineArns(process.env.TARGET_PIPELINE_ARNS);
+  const allowedArns = parseAllowedPipelineArns(process.env[ENV_TARGET_PIPELINE_ARNS]);
   if (!isAllowedPipelineArn(pipelineArn, allowedArns)) {
     return false;
   }
@@ -204,7 +213,7 @@ const handleEvent = async (
   event: CodePipelineExecutionStartedEvent,
   durable: DurableContext,
 ): Promise<void> => {
-  const topicArn = mustEnv('SNS_TOPIC_ARN');
+  const topicArn = mustEnv(ENV_SNS_TOPIC_ARN);
   const identity = resolvePipelineExecutionIdentity(
     event.detail?.pipeline,
     event.detail?.['execution-id'],
@@ -230,10 +239,10 @@ const handleEvent = async (
     return;
   }
 
-  const waitIntervalSecondsRaw = StrictEnvResolver.resolve('WAIT_INTERVAL_SECONDS', StrictEnvType.Number, {
+  const waitIntervalSecondsRaw = StrictEnvResolver.resolve(ENV_WAIT_INTERVAL_SECONDS, StrictEnvType.Number, {
     default: DEFAULT_WAIT_INTERVAL_SECONDS,
   });
-  const maxWaitMinutesRaw = StrictEnvResolver.resolve('MAX_WAIT_MINUTES', StrictEnvType.Number, {
+  const maxWaitMinutesRaw = StrictEnvResolver.resolve(ENV_MAX_WAIT_MINUTES, StrictEnvType.Number, {
     default: DEFAULT_MAX_WAIT_MINUTES,
   });
 
