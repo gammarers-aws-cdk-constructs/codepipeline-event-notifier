@@ -1,3 +1,4 @@
+import { LocalDurableTestRunner } from '@aws/durable-execution-sdk-js-testing';
 import {
   GetPipelineExecutionCommand,
   ListTagsForResourceCommand,
@@ -73,10 +74,26 @@ const publishedPayloads = (): Array<Record<string, unknown>> => mockSnsSend.mock
   return JSON.parse(command.input.Message) as Record<string, unknown>;
 });
 
+const runHandler = async (event: CodePipelineExecutionStartedEvent) => {
+  const runner = new LocalDurableTestRunner({
+    handlerFunction: handler,
+  });
+  return runner.run({ payload: event });
+};
+
 describe('notifier.lambda handler', () => {
+  beforeAll(async () => {
+    await LocalDurableTestRunner.setupTestEnvironment({
+      skipTime: true,
+    });
+  });
+
+  afterAll(async () => {
+    await LocalDurableTestRunner.teardownTestEnvironment();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.useRealTimers();
     process.env.SNS_TOPIC_ARN = TOPIC_ARN;
     process.env.WAIT_INTERVAL_SECONDS = '1';
     process.env.MAX_WAIT_MINUTES = '1';
@@ -97,8 +114,6 @@ describe('notifier.lambda handler', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
-    jest.restoreAllMocks();
     delete process.env.SNS_TOPIC_ARN;
     delete process.env.WAIT_INTERVAL_SECONDS;
     delete process.env.MAX_WAIT_MINUTES;
@@ -121,8 +136,9 @@ describe('notifier.lambda handler', () => {
         detail: { 'state': 'STARTED', 'execution-id': 'exec-1' },
       },
     ])('publishes an error note when $name', async ({ detail }) => {
-      await handler(makeEvent(detail));
+      const execution = await runHandler(makeEvent(detail));
 
+      expect(execution.getStatus()).toBe('SUCCEEDED');
       expect(mockListTagsSend).not.toHaveBeenCalled();
       expect(mockGetExecutionSend).not.toHaveBeenCalled();
       expect(publishedPayloads()).toEqual([
@@ -140,8 +156,9 @@ describe('notifier.lambda handler', () => {
       'arn:aws:codepipeline:us-east-1:123456789012:other-pipeline',
     ]);
 
-    await handler(makeEvent());
+    const execution = await runHandler(makeEvent());
 
+    expect(execution.getStatus()).toBe('SUCCEEDED');
     expect(mockListTagsSend).not.toHaveBeenCalled();
     expect(mockGetExecutionSend).not.toHaveBeenCalled();
     expect(publishedPayloads()).toEqual([]);
@@ -153,8 +170,9 @@ describe('notifier.lambda handler', () => {
       pipelineExecution: { status: 'Succeeded' },
     });
 
-    await handler(makeEvent());
+    const execution = await runHandler(makeEvent());
 
+    expect(execution.getStatus()).toBe('SUCCEEDED');
     expect(mockListTagsSend).toHaveBeenCalledTimes(1);
     expect(mockGetExecutionSend).toHaveBeenCalledTimes(1);
   });
@@ -164,8 +182,9 @@ describe('notifier.lambda handler', () => {
       tags: [{ key: 'Notify', value: 'false' }],
     });
 
-    await handler(makeEvent());
+    const execution = await runHandler(makeEvent());
 
+    expect(execution.getStatus()).toBe('SUCCEEDED');
     expect(mockListTagsSend).toHaveBeenCalledTimes(1);
     expect(mockGetExecutionSend).not.toHaveBeenCalled();
     expect(publishedPayloads()).toEqual([]);
@@ -176,7 +195,7 @@ describe('notifier.lambda handler', () => {
       pipelineExecution: { status: 'Succeeded' },
     });
 
-    await handler(makeEvent());
+    await runHandler(makeEvent());
 
     expect(mockListTagsSend).toHaveBeenCalledWith(expect.any(ListTagsForResourceCommand));
     const command = mockListTagsSend.mock.calls[0][0] as ListTagsForResourceCommand;
@@ -188,19 +207,21 @@ describe('notifier.lambda handler', () => {
       pipelineExecution: { status: 'Succeeded' },
     });
 
-    await handler(makeEvent(undefined, []));
+    await runHandler(makeEvent(undefined, []));
 
     const command = mockListTagsSend.mock.calls[0][0] as ListTagsForResourceCommand;
     expect(command.input.resourceArn).toBe(PIPELINE_ARN);
   });
 
-  it('throws when the pipeline ARN cannot be resolved', async () => {
+  it('fails when the pipeline ARN cannot be resolved', async () => {
     const event = makeEvent(undefined, []);
-    await expect(handler({
+    const execution = await runHandler({
       ...event,
       region: '',
       account: '',
-    })).rejects.toThrow('Unable to resolve pipeline ARN for tag lookup');
+    });
+
+    expect(execution.getStatus()).toBe('FAILED');
     expect(mockGetExecutionSend).not.toHaveBeenCalled();
     expect(publishedPayloads()).toEqual([]);
   });
@@ -216,8 +237,9 @@ describe('notifier.lambda handler', () => {
         pipelineExecution: { status },
       });
 
-      await handler(makeEvent());
+      const execution = await runHandler(makeEvent());
 
+      expect(execution.getStatus()).toBe('SUCCEEDED');
       expect(mockGetExecutionSend).toHaveBeenCalledTimes(1);
       expect(publishedPayloads()).toEqual([
         expect.objectContaining({
@@ -243,11 +265,9 @@ describe('notifier.lambda handler', () => {
       .mockResolvedValueOnce({ pipelineExecution: { status: 'InProgress' } })
       .mockResolvedValueOnce({ pipelineExecution: { status: 'Succeeded' } });
 
-    jest.useFakeTimers();
-    const pending = handler(makeEvent());
-    await jest.advanceTimersByTimeAsync(2_000);
-    await pending;
+    const execution = await runHandler(makeEvent());
 
+    expect(execution.getStatus()).toBe('SUCCEEDED');
     expect(mockGetExecutionSend).toHaveBeenCalledTimes(3);
     expect(publishedPayloads()).toEqual([
       expect.objectContaining({ phase: 'eventbridge', observedState: 'STARTED' }),
@@ -256,16 +276,16 @@ describe('notifier.lambda handler', () => {
     ]);
   });
 
-  it('publishes a timeout note when the wait deadline elapses', async () => {
+  it('publishes a timeout note when the wait attempt budget elapses', async () => {
+    process.env.WAIT_INTERVAL_SECONDS = '30';
+    process.env.MAX_WAIT_MINUTES = '1';
     mockGetExecutionSend.mockResolvedValue({
       pipelineExecution: { status: 'InProgress' },
     });
 
-    jest.useFakeTimers();
-    const pending = handler(makeEvent());
-    await jest.advanceTimersByTimeAsync(61_000);
-    await pending;
+    const execution = await runHandler(makeEvent());
 
+    expect(execution.getStatus()).toBe('SUCCEEDED');
     const payloads = publishedPayloads();
     expect(payloads[0]).toEqual(expect.objectContaining({
       phase: 'eventbridge',
@@ -280,6 +300,8 @@ describe('notifier.lambda handler', () => {
       observedState: 'INPROGRESS',
       note: 'Waiting timed out before terminal state.',
     }));
+    // 1 minute / 30 seconds = 2 attempts
+    expect(mockGetExecutionSend).toHaveBeenCalledTimes(2);
   });
 
   it('defaults observedState to STARTED when detail.state is absent', async () => {
@@ -287,7 +309,7 @@ describe('notifier.lambda handler', () => {
       pipelineExecution: { status: 'Succeeded' },
     });
 
-    await handler(makeEvent({
+    await runHandler(makeEvent({
       'pipeline': 'my-pipeline',
       'execution-id': 'exec-1',
     }));
@@ -311,33 +333,10 @@ describe('notifier.lambda handler', () => {
       pipelineExecution: { status: 'Succeeded' },
     });
 
-    await handler(makeEvent());
+    const execution = await runHandler(makeEvent());
 
+    expect(execution.getStatus()).toBe('SUCCEEDED');
     expect(mockGetExecutionSend).toHaveBeenCalledTimes(1);
     expect(publishedPayloads()).toHaveLength(2);
-  });
-
-  it('publishes UNKNOWN on timeout when no execution status was observed', async () => {
-    let nowCalls = 0;
-    jest.spyOn(Date, 'now').mockImplementation(() => {
-      nowCalls += 1;
-      // First call builds the deadline; later calls skip the wait loop.
-      return nowCalls === 1 ? 1_000_000 : 2_000_000;
-    });
-
-    await handler(makeEvent());
-
-    expect(mockGetExecutionSend).not.toHaveBeenCalled();
-    expect(publishedPayloads()).toEqual([
-      expect.objectContaining({
-        phase: 'eventbridge',
-        observedState: 'STARTED',
-      }),
-      expect.objectContaining({
-        phase: 'wait',
-        observedState: 'UNKNOWN',
-        note: 'Waiting timed out before terminal state.',
-      }),
-    ]);
   });
 });

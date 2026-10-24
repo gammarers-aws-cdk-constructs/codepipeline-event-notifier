@@ -23,6 +23,10 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
           "S3Key": "220583a66b8239341bed94a241de70b5623357d74a0d4dc674133ec2f1c2127c.zip",
         },
         "Description": "src/funcs/notifier.lambda.ts",
+        "DurableConfig": {
+          "ExecutionTimeout": 840,
+          "RetentionPeriodInDays": 14,
+        },
         "Environment": {
           "Variables": {
             "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
@@ -42,9 +46,35 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
           ],
         },
         "Runtime": "nodejs24.x",
-        "Timeout": 900,
+        "Timeout": 300,
       },
       "Type": "AWS::Lambda::Function",
+    },
+    "CodePipelineEventNotifierNotifierFunctionAliaslive57CCB814": {
+      "Properties": {
+        "FunctionName": {
+          "Ref": "CodePipelineEventNotifierNotifierFunction0B083763",
+        },
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "CodePipelineEventNotifierNotifierFunctionCurrentVersionA8DD6EDC381e5442ea738a12339b9738fea12a59",
+            "Version",
+          ],
+        },
+        "Name": "live",
+      },
+      "Type": "AWS::Lambda::Alias",
+    },
+    "CodePipelineEventNotifierNotifierFunctionCurrentVersionA8DD6EDC381e5442ea738a12339b9738fea12a59": {
+      "Metadata": {
+        "aws:cdk:do-not-refactor": true,
+      },
+      "Properties": {
+        "FunctionName": {
+          "Ref": "CodePipelineEventNotifierNotifierFunction0B083763",
+        },
+      },
+      "Type": "AWS::Lambda::Version",
     },
     "CodePipelineEventNotifierNotifierFunctionServiceRoleDefaultPolicy37A39393": {
       "Properties": {
@@ -119,7 +149,7 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
                 {
                   "Ref": "AWS::Partition",
                 },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+                ":iam::aws:policy/service-role/AWSLambdaBasicDurableExecutionRolePolicy",
               ],
             ],
           },
@@ -127,14 +157,11 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
       },
       "Type": "AWS::IAM::Role",
     },
-    "CodePipelineEventNotifierOnPipelineExecutionStartedRuleAllowEventRuleTestStackCodePipelineEventNotifierNotifierFunctionAD07201787DAC960": {
+    "CodePipelineEventNotifierOnPipelineExecutionStartedRuleAllowEventRuleTestStackCodePipelineEventNotifierNotifierFunctionAliasliveC3D0554CC0B8DC47": {
       "Properties": {
         "Action": "lambda:InvokeFunction",
         "FunctionName": {
-          "Fn::GetAtt": [
-            "CodePipelineEventNotifierNotifierFunction0B083763",
-            "Arn",
-          ],
+          "Ref": "CodePipelineEventNotifierNotifierFunctionAliaslive57CCB814",
         },
         "Principal": "events.amazonaws.com",
         "SourceArn": {
@@ -165,10 +192,7 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
         "Targets": [
           {
             "Arn": {
-              "Fn::GetAtt": [
-                "CodePipelineEventNotifierNotifierFunction0B083763",
-                "Arn",
-              ],
+              "Ref": "CodePipelineEventNotifierNotifierFunctionAliaslive57CCB814",
             },
             "Id": "Target0",
           },

@@ -21,7 +21,11 @@ describe('CodePipelineEventNotifier', () => {
     const template = Template.fromStack(stack);
     template.resourceCountIs('AWS::SNS::Topic', 1);
     template.hasResourceProperties('AWS::Lambda::Function', {
-      Timeout: 900,
+      Timeout: 300,
+      DurableConfig: {
+        ExecutionTimeout: 840,
+        RetentionPeriodInDays: 14,
+      },
       Environment: {
         Variables: Match.objectLike({
           WAIT_INTERVAL_SECONDS: '10',
@@ -29,6 +33,9 @@ describe('CodePipelineEventNotifier', () => {
           TARGET_PIPELINE_TAGS: JSON.stringify(defaultTargetPipeline.tags),
         }),
       },
+    });
+    template.hasResourceProperties('AWS::Lambda::Alias', {
+      Name: 'live',
     });
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: Match.objectLike({
@@ -77,6 +84,7 @@ describe('CodePipelineEventNotifier', () => {
       waitInterval: Duration.seconds(30),
       maxWaitDuration: Duration.minutes(10),
       timeout: Duration.minutes(12),
+      durableRetentionPeriod: Duration.days(7),
       targetPipeline: {
         tags: [
           {
@@ -99,6 +107,10 @@ describe('CodePipelineEventNotifier', () => {
     template.resourceCountIs('AWS::SNS::Topic', 1);
     template.hasResourceProperties('AWS::Lambda::Function', {
       Timeout: 720,
+      DurableConfig: {
+        ExecutionTimeout: 600,
+        RetentionPeriodInDays: 7,
+      },
       Environment: {
         Variables: Match.objectLike({
           WAIT_INTERVAL_SECONDS: '30',

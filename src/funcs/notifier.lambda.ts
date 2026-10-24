@@ -1,3 +1,4 @@
+import { withDurableExecution, type DurableContext } from '@aws/durable-execution-sdk-js';
 import { CodePipelineClient, GetPipelineExecutionCommand, ListTagsForResourceCommand } from '@aws-sdk/client-codepipeline';
 import { PublishCommand, SNSClient } from '@aws-sdk/client-sns';
 import type { EventBridgeEvent } from 'aws-lambda';
@@ -45,14 +46,19 @@ const sns = new SNSClient({});
 const codepipeline = new CodePipelineClient({});
 
 /**
+ * Default wait interval in seconds when the env value is missing or invalid.
+ */
+const DEFAULT_WAIT_INTERVAL_SECONDS = 10;
+
+/**
+ * Default maximum wait duration in minutes when the env value is missing or invalid.
+ */
+const DEFAULT_MAX_WAIT_MINUTES = 14;
+
+/**
  * Reads a required environment variable.
  */
 const mustEnv = (name: string): string => StrictEnvResolver.resolve(name, StrictEnvType.String, { trim: true });
-
-/**
- * Sleeps for the specified number of milliseconds.
- */
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Publishes a JSON payload to the given SNS topic ARN.
@@ -65,9 +71,17 @@ const publish = async (topicArn: string, payload: unknown): Promise<void> => {
 };
 
 /**
- * Waits on a CodePipeline execution and publishes notifications whenever the execution status changes.
+ * Resolves how many GetPipelineExecution attempts fit into the max wait window.
+ */
+const resolveMaxAttempts = (waitIntervalSeconds: number, maxWaitMinutes: number): number => {
+  return Math.max(1, Math.ceil((maxWaitMinutes * 60) / waitIntervalSeconds));
+};
+
+/**
+ * Waits on a CodePipeline execution with durable steps/waits and publishes SNS on status changes.
  */
 const waitPipelineExecution = async (params: {
+  durable: DurableContext;
   topicArn: string;
   pipelineName: string;
   executionId: string;
@@ -76,6 +90,7 @@ const waitPipelineExecution = async (params: {
   startEvent: CodePipelineExecutionStartedEvent;
 }): Promise<void> => {
   const {
+    durable,
     topicArn,
     pipelineName,
     executionId,
@@ -84,36 +99,41 @@ const waitPipelineExecution = async (params: {
     startEvent,
   } = params;
 
-  const deadline = Date.now() + maxWaitMinutes * 60_000;
+  const maxAttempts = resolveMaxAttempts(waitIntervalSeconds, maxWaitMinutes);
   let lastStatus: string | undefined;
 
-  // 最初に STARTED を通知（EventBridge由来）
-  await publish(topicArn, {
-    type: 'codepipeline.execution',
-    phase: 'eventbridge',
-    pipelineName,
-    executionId,
-    observedState: startEvent.detail?.state ?? 'STARTED',
-    observedAt: new Date().toISOString(),
-    event: startEvent,
+  await durable.step('publish-started', async () => {
+    await publish(topicArn, {
+      type: 'codepipeline.execution',
+      phase: 'eventbridge',
+      pipelineName,
+      executionId,
+      observedState: startEvent.detail?.state ?? 'STARTED',
+      observedAt: new Date().toISOString(),
+      event: startEvent,
+    });
   });
 
-  while (Date.now() < deadline) {
-    const res = await codepipeline.send(new GetPipelineExecutionCommand({
-      pipelineName,
-      pipelineExecutionId: executionId,
-    }));
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const status = await durable.step(`get-status-${attempt}`, async () => {
+      const res = await codepipeline.send(new GetPipelineExecutionCommand({
+        pipelineName,
+        pipelineExecutionId: executionId,
+      }));
+      return normalizeExecutionStatus(res.pipelineExecution?.status);
+    });
 
-    const status = normalizeExecutionStatus(res.pipelineExecution?.status);
     if (status !== lastStatus) {
       lastStatus = status;
-      await publish(topicArn, {
-        type: 'codepipeline.execution',
-        phase: 'wait',
-        pipelineName,
-        executionId,
-        observedState: status,
-        observedAt: new Date().toISOString(),
+      await durable.step(`publish-status-${attempt}`, async () => {
+        await publish(topicArn, {
+          type: 'codepipeline.execution',
+          phase: 'wait',
+          pipelineName,
+          executionId,
+          observedState: status,
+          observedAt: new Date().toISOString(),
+        });
       });
     }
 
@@ -121,17 +141,23 @@ const waitPipelineExecution = async (params: {
       return;
     }
 
-    await sleep(waitIntervalSeconds * 1000);
+    if (attempt + 1 >= maxAttempts) {
+      break;
+    }
+
+    await durable.wait(`wait-${attempt}`, { seconds: waitIntervalSeconds });
   }
 
-  await publish(topicArn, {
-    type: 'codepipeline.execution',
-    phase: 'wait',
-    pipelineName,
-    executionId,
-    observedState: lastStatus ?? 'UNKNOWN',
-    observedAt: new Date().toISOString(),
-    note: 'Waiting timed out before terminal state.',
+  await durable.step('publish-timeout', async () => {
+    await publish(topicArn, {
+      type: 'codepipeline.execution',
+      phase: 'wait',
+      pipelineName,
+      executionId,
+      observedState: lastStatus ?? 'UNKNOWN',
+      observedAt: new Date().toISOString(),
+      note: 'Waiting timed out before terminal state.',
+    });
   });
 };
 
@@ -170,10 +196,14 @@ const isTargetPipelineEvent = async (
 };
 
 /**
- * Lambda handler triggered by EventBridge when a pipeline execution transitions to STARTED.
- * It ignores pipelines that do not match `TARGET_PIPELINE_TAGS` (and optional `TARGET_PIPELINE_ARNS`), then waits for a terminal state.
+ * Durable handler triggered by EventBridge when a pipeline execution transitions to STARTED.
+ * It ignores pipelines that do not match `TARGET_PIPELINE_TAGS` (and optional `TARGET_PIPELINE_ARNS`),
+ * then waits for a terminal state with durable waits between GetPipelineExecution calls.
  */
-export const handler = async (event: CodePipelineExecutionStartedEvent): Promise<void> => {
+const handleEvent = async (
+  event: CodePipelineExecutionStartedEvent,
+  durable: DurableContext,
+): Promise<void> => {
   const topicArn = mustEnv('SNS_TOPIC_ARN');
   const identity = resolvePipelineExecutionIdentity(
     event.detail?.pipeline,
@@ -181,29 +211,44 @@ export const handler = async (event: CodePipelineExecutionStartedEvent): Promise
   );
 
   if (!identity) {
-    await publish(topicArn, {
-      type: 'codepipeline.execution',
-      phase: 'eventbridge',
-      observedAt: new Date().toISOString(),
-      note: 'Missing pipelineName or executionId in event.detail',
-      event,
+    await durable.step('publish-missing-identity', async () => {
+      await publish(topicArn, {
+        type: 'codepipeline.execution',
+        phase: 'eventbridge',
+        observedAt: new Date().toISOString(),
+        note: 'Missing pipelineName or executionId in event.detail',
+        event,
+      });
     });
     return;
   }
 
-  if (!await isTargetPipelineEvent(event, identity.pipelineName)) {
+  const isTarget = await durable.step('resolve-target-pipeline', async () => {
+    return isTargetPipelineEvent(event, identity.pipelineName);
+  });
+  if (!isTarget) {
     return;
   }
 
-  const waitIntervalSeconds = StrictEnvResolver.resolve('WAIT_INTERVAL_SECONDS', StrictEnvType.Number, { default: 10 });
-  const maxWaitMinutes = StrictEnvResolver.resolve('MAX_WAIT_MINUTES', StrictEnvType.Number, { default: 14 });
+  const waitIntervalSecondsRaw = StrictEnvResolver.resolve('WAIT_INTERVAL_SECONDS', StrictEnvType.Number, {
+    default: DEFAULT_WAIT_INTERVAL_SECONDS,
+  });
+  const maxWaitMinutesRaw = StrictEnvResolver.resolve('MAX_WAIT_MINUTES', StrictEnvType.Number, {
+    default: DEFAULT_MAX_WAIT_MINUTES,
+  });
 
   await waitPipelineExecution({
+    durable,
     topicArn,
     pipelineName: identity.pipelineName,
     executionId: identity.executionId,
-    waitIntervalSeconds: waitIntervalSeconds > 0 ? waitIntervalSeconds : 10,
-    maxWaitMinutes: maxWaitMinutes > 0 ? maxWaitMinutes : 14,
+    waitIntervalSeconds: waitIntervalSecondsRaw > 0 ? waitIntervalSecondsRaw : DEFAULT_WAIT_INTERVAL_SECONDS,
+    maxWaitMinutes: maxWaitMinutesRaw > 0 ? maxWaitMinutesRaw : DEFAULT_MAX_WAIT_MINUTES,
     startEvent: event,
   });
 };
+
+/**
+ * Lambda entrypoint wrapped for durable execution.
+ */
+export const handler = withDurableExecution(handleEvent);

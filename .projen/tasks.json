@@ -430,6 +430,8 @@
             "update",
             "@aws-sdk/client-codepipeline",
             "@aws-sdk/client-sns",
+            "@aws/durable-execution-sdk-js-testing",
+            "@aws/durable-execution-sdk-js",
             "@gammarers/projen-projects",
             "@stylistic/eslint-plugin",
             "@types/aws-lambda",
