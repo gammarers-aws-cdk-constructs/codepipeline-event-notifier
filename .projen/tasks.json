@@ -365,7 +365,6 @@
         {
           "execArgs": [
             "jest",
-            "--silent",
             "--passWithNoTests",
             "--updateSnapshot"
           ],

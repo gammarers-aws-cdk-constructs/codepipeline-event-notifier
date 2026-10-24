@@ -16,5 +16,15 @@ const project = new ProjenCdkConstructLibrary({
     '@aws/durable-execution-sdk-js-testing@^1.3.1',
     'strict-env-resolver@^0.8.1',
   ],
+  jestOptions: {
+    jestConfig: {
+      coverageThreshold: {
+        branches: 95,
+        functions: 90,
+        lines: 100,
+        statements: 100,
+      },
+    },
+  },
 });
 project.synth();

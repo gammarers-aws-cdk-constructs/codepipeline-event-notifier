@@ -1,6 +1,6 @@
 import { App, Duration, Stack, aws_sns as sns } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { CodePipelineEventNotifier } from '../src';
+import { CodePipelineEventNotifier, type CodePipelineEventNotifierProps } from '../src';
 
 const defaultTargetPipeline = {
   tags: [
@@ -9,6 +9,57 @@ const defaultTargetPipeline = {
       values: ['true'],
     },
   ],
+};
+
+/**
+ * Asserts durable execution wiring shared across successful construct syntheses.
+ */
+const expectDurableNotifierWiring = (template: Template): void => {
+  template.resourceCountIs('AWS::Lambda::Function', 1);
+  template.resourceCountIs('AWS::Lambda::Version', 1);
+  template.resourceCountIs('AWS::Lambda::Alias', 1);
+  template.resourceCountIs('AWS::Lambda::Permission', 1);
+  template.resourceCountIs('AWS::Events::Rule', 1);
+
+  template.hasResourceProperties('AWS::Lambda::Alias', {
+    Name: 'live',
+  });
+
+  template.hasResourceProperties('AWS::IAM::Role', {
+    ManagedPolicyArns: Match.arrayWith([
+      {
+        'Fn::Join': [
+          '',
+          [
+            'arn:',
+            { Ref: 'AWS::Partition' },
+            ':iam::aws:policy/service-role/AWSLambdaBasicDurableExecutionRolePolicy',
+          ],
+        ],
+      },
+    ]),
+  });
+
+  template.hasResourceProperties('AWS::IAM::Policy', {
+    PolicyDocument: Match.objectLike({
+      Statement: Match.arrayWith([
+        Match.objectLike({
+          Action: 'sns:Publish',
+          Effect: 'Allow',
+        }),
+      ]),
+    }),
+  });
+
+  const aliasLogicalId = Object.keys(template.findResources('AWS::Lambda::Alias'))[0];
+  template.hasResourceProperties('AWS::Events::Rule', {
+    Targets: [
+      {
+        Arn: { Ref: aliasLogicalId },
+        Id: 'Target0',
+      },
+    ],
+  });
 };
 
 describe('CodePipelineEventNotifier', () => {
@@ -20,6 +71,7 @@ describe('CodePipelineEventNotifier', () => {
 
     const template = Template.fromStack(stack);
     template.resourceCountIs('AWS::SNS::Topic', 1);
+    expectDurableNotifierWiring(template);
     template.hasResourceProperties('AWS::Lambda::Function', {
       Timeout: 300,
       DurableConfig: {
@@ -33,9 +85,6 @@ describe('CodePipelineEventNotifier', () => {
           TARGET_PIPELINE_TAGS: JSON.stringify(defaultTargetPipeline.tags),
         }),
       },
-    });
-    template.hasResourceProperties('AWS::Lambda::Alias', {
-      Name: 'live',
     });
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: Match.objectLike({
@@ -105,6 +154,7 @@ describe('CodePipelineEventNotifier', () => {
 
     const template = Template.fromStack(stack);
     template.resourceCountIs('AWS::SNS::Topic', 1);
+    expectDurableNotifierWiring(template);
     template.hasResourceProperties('AWS::Lambda::Function', {
       Timeout: 720,
       DurableConfig: {
@@ -266,6 +316,62 @@ describe('CodePipelineEventNotifier', () => {
           ]),
         }),
       },
+    });
+  });
+
+  describe('template snapshots for major props combinations', () => {
+    it.each([
+      {
+        name: 'defaults',
+        buildProps: (): CodePipelineEventNotifierProps => ({
+          targetPipeline: defaultTargetPipeline,
+        }),
+      },
+      {
+        name: 'custom-timing',
+        buildProps: (): CodePipelineEventNotifierProps => ({
+          targetPipeline: defaultTargetPipeline,
+          waitInterval: Duration.seconds(30),
+          maxWaitDuration: Duration.minutes(10),
+          timeout: Duration.minutes(3),
+          durableRetentionPeriod: Duration.days(7),
+        }),
+      },
+      {
+        name: 'existing-topic-and-pattern',
+        buildProps: (stack: Stack): CodePipelineEventNotifierProps => ({
+          topic: new sns.Topic(stack, 'ExistingTopic'),
+          targetPipeline: {
+            tags: [
+              { key: 'Team', values: ['platform', 'infra'] },
+            ],
+          },
+          eventPattern: {
+            source: ['aws.codepipeline'],
+            detailType: ['CodePipeline Pipeline Execution State Change'],
+            detail: {
+              state: ['STARTED'],
+              pipeline: ['my-pipeline'],
+            },
+          },
+        }),
+      },
+      {
+        name: 'arns-allowlist',
+        buildProps: (): CodePipelineEventNotifierProps => ({
+          targetPipeline: {
+            tags: defaultTargetPipeline.tags,
+            arns: [
+              'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline',
+            ],
+          },
+        }),
+      },
+    ])('matches snapshot for $name', ({ name, buildProps }) => {
+      const stack = new Stack(new App(), `Snap-${name}`);
+      new CodePipelineEventNotifier(stack, 'Notifier', buildProps(stack));
+
+      expect(Template.fromStack(stack).toJSON()).toMatchSnapshot(name);
     });
   });
 });
