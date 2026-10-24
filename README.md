@@ -7,7 +7,7 @@
 
 [![View on Construct Hub](https://constructs.dev/badge?package=codepipeline-event-notifier)](https://constructs.dev/packages/codepipeline-event-notifier)
 
-CDK construct that listens to **AWS CodePipeline execution STARTED** events via EventBridge, invokes a Lambda notifier, and publishes execution state changes to an SNS topic.
+CDK construct that listens to **AWS CodePipeline execution STARTED** events via EventBridge, invokes a **durable** Lambda notifier, and publishes execution state changes to an SNS topic.
 
 ## Features
 
@@ -15,15 +15,15 @@ CDK construct that listens to **AWS CodePipeline execution STARTED** events via 
 - **Tag-based pipeline selection**: required `targetPipeline.tags` filters which pipelines are notified (`ListTagsForResource`; keys are AND, values are OR)
 - **Least-privilege IAM**: CodePipeline API access is scoped to this account and region, or to `targetPipeline.arns` when set
 - **SNS notifications**: publishes execution status transitions as JSON messages (`phase`: `eventbridge` / `wait`)
-- **Execution waiting**: calls `GetPipelineExecution` until a terminal state (`SUCCEEDED` / `FAILED` / `STOPPED` / `SUPERSEDED`) or timeout
-- **Configurable props**: reuse an existing SNS topic, adjust wait interval / max wait duration / Lambda timeout, and optionally refine the EventBridge pattern
+- **Durable execution waiting**: uses Lambda durable functions (`@aws/durable-execution-sdk-js`) so waits suspend between `GetPipelineExecution` checks instead of holding a long synchronous invocation
+- **Configurable props**: reuse an existing SNS topic, adjust wait interval / max wait duration / per-invocation timeout / durable retention, and optionally refine the EventBridge pattern
 - **No subscriptions by default**: the SNS topic is created (or reused), but subscriptions (email/HTTP/etc.) are intentionally not configured
 
 ## How it works
 
-1. EventBridge matches a CodePipeline execution state-change event (default: `state=STARTED`) and invokes the notifier Lambda.
-2. The Lambda resolves the pipeline ARN, then keeps the event only when `targetPipeline.tags` match (`ListTagsForResource`; keys are AND, values are OR) and, if set, `targetPipeline.arns` includes the pipeline.
-3. It publishes an SNS message with `phase: eventbridge`, then calls `GetPipelineExecution` until a terminal status (`SUCCEEDED` / `FAILED` / `STOPPED` / `SUPERSEDED`) or `maxWaitDuration`.
+1. EventBridge matches a CodePipeline execution state-change event (default: `state=STARTED`) and invokes the notifier Lambda **alias** (`live`).
+2. The durable Lambda resolves the pipeline ARN, then keeps the event only when `targetPipeline.tags` match (`ListTagsForResource`; keys are AND, values are OR) and, if set, `targetPipeline.arns` includes the pipeline.
+3. It publishes an SNS message with `phase: eventbridge`, then uses durable steps and waits around `GetPipelineExecution` until a terminal status (`SUCCEEDED` / `FAILED` / `STOPPED` / `SUPERSEDED`) or `maxWaitDuration`.
 4. Each status change (and timeout) is published with `phase: wait`. Subscribe to `notifier.topic`; this construct does not add subscriptions.
 
 ## Installation
@@ -93,7 +93,8 @@ export class MyStack extends Stack {
       topic,
       waitInterval: Duration.seconds(30),
       maxWaitDuration: Duration.minutes(10),
-      timeout: Duration.minutes(12),
+      timeout: Duration.minutes(3),
+      durableRetentionPeriod: Duration.days(7),
       targetPipeline: {
         tags: [
           {
@@ -123,9 +124,10 @@ export class MyStack extends Stack {
 | --- | --- | --- | --- |
 | `targetPipeline` | `TargetPipeline` | *(required)* | Tag filters (`tags`) for pipelines that should notify. Optional `arns` restrict IAM and skip other pipelines. Default IAM is this account and region |
 | `topic` | `sns.ITopic` | new topic | SNS topic to publish notifications to (also exposed as `notifier.topic`) |
-| `waitInterval` | `Duration` | `10 seconds` | Interval between `GetPipelineExecution` calls |
-| `maxWaitDuration` | `Duration` | `14 minutes` | Maximum wait duration before giving up |
-| `timeout` | `Duration` | `15 minutes` | Notifier Lambda timeout (should exceed `maxWaitDuration`) |
+| `waitInterval` | `Duration` | `10 seconds` | Durable wait interval between `GetPipelineExecution` checks |
+| `maxWaitDuration` | `Duration` | `14 minutes` | Maximum wait duration and durable `executionTimeout` |
+| `timeout` | `Duration` | `5 minutes` | Per-invocation Lambda timeout (durable waits suspend between invocations) |
+| `durableRetentionPeriod` | `Duration` | `14 days` | How long Lambda retains durable execution history |
 | `eventPattern` | `events.EventPattern` | CodePipeline `STARTED` | EventBridge rule filter |
 
 The notifier Lambda uses these environment variables (set by the construct from props):

@@ -1,0 +1,922 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`CodePipelineEventNotifier template snapshots for major props combinations matches snapshot for arns-allowlist: arns-allowlist 1`] = `
+{
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "NotifierNotifierFunction9B404806": {
+      "DependsOn": [
+        "NotifierNotifierFunctionServiceRoleDefaultPolicy3F255123",
+        "NotifierNotifierFunctionServiceRoleF39CFF54",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "626da62c19609784f1df5ebb2ad6e0f07c7d8391623eae053590985479e70582.zip",
+        },
+        "Description": "src/funcs/notifier.lambda.ts",
+        "DurableConfig": {
+          "ExecutionTimeout": 840,
+          "RetentionPeriodInDays": 14,
+        },
+        "Environment": {
+          "Variables": {
+            "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+            "MAX_WAIT_MINUTES": "14",
+            "SNS_TOPIC_ARN": {
+              "Ref": "NotifierPipelineEventTopic1EB9FEF0",
+            },
+            "TARGET_PIPELINE_ARNS": "["arn:aws:codepipeline:us-east-1:123456789012:my-pipeline"]",
+            "TARGET_PIPELINE_TAGS": "[{"key":"Notify","values":["true"]}]",
+            "WAIT_INTERVAL_SECONDS": "10",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "NotifierNotifierFunctionServiceRoleF39CFF54",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "NotifierNotifierFunctionAliaslive217356D8": {
+      "Properties": {
+        "FunctionName": {
+          "Ref": "NotifierNotifierFunction9B404806",
+        },
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "NotifierNotifierFunctionCurrentVersion5306DED18e83f74ab26649f0fafc53d3ba2444cf",
+            "Version",
+          ],
+        },
+        "Name": "live",
+      },
+      "Type": "AWS::Lambda::Alias",
+    },
+    "NotifierNotifierFunctionCurrentVersion5306DED18e83f74ab26649f0fafc53d3ba2444cf": {
+      "Metadata": {
+        "aws:cdk:do-not-refactor": true,
+      },
+      "Properties": {
+        "FunctionName": {
+          "Ref": "NotifierNotifierFunction9B404806",
+        },
+      },
+      "Type": "AWS::Lambda::Version",
+    },
+    "NotifierNotifierFunctionServiceRoleDefaultPolicy3F255123": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sns:Publish",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "NotifierPipelineEventTopic1EB9FEF0",
+              },
+            },
+            {
+              "Action": [
+                "codepipeline:GetPipelineExecution",
+                "codepipeline:ListTagsForResource",
+              ],
+              "Effect": "Allow",
+              "Resource": "arn:aws:codepipeline:us-east-1:123456789012:my-pipeline",
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "NotifierNotifierFunctionServiceRoleDefaultPolicy3F255123",
+        "Roles": [
+          {
+            "Ref": "NotifierNotifierFunctionServiceRoleF39CFF54",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "NotifierNotifierFunctionServiceRoleF39CFF54": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicDurableExecutionRolePolicy",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "NotifierOnPipelineExecutionStartedRule622BF6F1": {
+      "Properties": {
+        "EventPattern": {
+          "detail": {
+            "state": [
+              "STARTED",
+            ],
+          },
+          "detail-type": [
+            "CodePipeline Pipeline Execution State Change",
+          ],
+          "source": [
+            "aws.codepipeline",
+          ],
+        },
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Ref": "NotifierNotifierFunctionAliaslive217356D8",
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "NotifierOnPipelineExecutionStartedRuleAllowEventRuleSnaparnsallowlistNotifierNotifierFunctionAliaslive0DC42D87D2C10B18": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "NotifierNotifierFunctionAliaslive217356D8",
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "NotifierOnPipelineExecutionStartedRule622BF6F1",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "NotifierPipelineEventTopic1EB9FEF0": {
+      "Type": "AWS::SNS::Topic",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`CodePipelineEventNotifier template snapshots for major props combinations matches snapshot for custom-timing: custom-timing 1`] = `
+{
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "NotifierNotifierFunction9B404806": {
+      "DependsOn": [
+        "NotifierNotifierFunctionServiceRoleDefaultPolicy3F255123",
+        "NotifierNotifierFunctionServiceRoleF39CFF54",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "626da62c19609784f1df5ebb2ad6e0f07c7d8391623eae053590985479e70582.zip",
+        },
+        "Description": "src/funcs/notifier.lambda.ts",
+        "DurableConfig": {
+          "ExecutionTimeout": 600,
+          "RetentionPeriodInDays": 7,
+        },
+        "Environment": {
+          "Variables": {
+            "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+            "MAX_WAIT_MINUTES": "10",
+            "SNS_TOPIC_ARN": {
+              "Ref": "NotifierPipelineEventTopic1EB9FEF0",
+            },
+            "TARGET_PIPELINE_TAGS": "[{"key":"Notify","values":["true"]}]",
+            "WAIT_INTERVAL_SECONDS": "30",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "NotifierNotifierFunctionServiceRoleF39CFF54",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 180,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "NotifierNotifierFunctionAliaslive217356D8": {
+      "Properties": {
+        "FunctionName": {
+          "Ref": "NotifierNotifierFunction9B404806",
+        },
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "NotifierNotifierFunctionCurrentVersion5306DED1b83bbbcc7d0978d68239214cb8a9918a",
+            "Version",
+          ],
+        },
+        "Name": "live",
+      },
+      "Type": "AWS::Lambda::Alias",
+    },
+    "NotifierNotifierFunctionCurrentVersion5306DED1b83bbbcc7d0978d68239214cb8a9918a": {
+      "Metadata": {
+        "aws:cdk:do-not-refactor": true,
+      },
+      "Properties": {
+        "FunctionName": {
+          "Ref": "NotifierNotifierFunction9B404806",
+        },
+      },
+      "Type": "AWS::Lambda::Version",
+    },
+    "NotifierNotifierFunctionServiceRoleDefaultPolicy3F255123": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sns:Publish",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "NotifierPipelineEventTopic1EB9FEF0",
+              },
+            },
+            {
+              "Action": [
+                "codepipeline:GetPipelineExecution",
+                "codepipeline:ListTagsForResource",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":codepipeline:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "NotifierNotifierFunctionServiceRoleDefaultPolicy3F255123",
+        "Roles": [
+          {
+            "Ref": "NotifierNotifierFunctionServiceRoleF39CFF54",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "NotifierNotifierFunctionServiceRoleF39CFF54": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicDurableExecutionRolePolicy",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "NotifierOnPipelineExecutionStartedRule622BF6F1": {
+      "Properties": {
+        "EventPattern": {
+          "detail": {
+            "state": [
+              "STARTED",
+            ],
+          },
+          "detail-type": [
+            "CodePipeline Pipeline Execution State Change",
+          ],
+          "source": [
+            "aws.codepipeline",
+          ],
+        },
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Ref": "NotifierNotifierFunctionAliaslive217356D8",
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "NotifierOnPipelineExecutionStartedRuleAllowEventRuleSnapcustomtimingNotifierNotifierFunctionAliasliveA838358EFE5C716C": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "NotifierNotifierFunctionAliaslive217356D8",
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "NotifierOnPipelineExecutionStartedRule622BF6F1",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "NotifierPipelineEventTopic1EB9FEF0": {
+      "Type": "AWS::SNS::Topic",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`CodePipelineEventNotifier template snapshots for major props combinations matches snapshot for defaults: defaults 1`] = `
+{
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "NotifierNotifierFunction9B404806": {
+      "DependsOn": [
+        "NotifierNotifierFunctionServiceRoleDefaultPolicy3F255123",
+        "NotifierNotifierFunctionServiceRoleF39CFF54",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "626da62c19609784f1df5ebb2ad6e0f07c7d8391623eae053590985479e70582.zip",
+        },
+        "Description": "src/funcs/notifier.lambda.ts",
+        "DurableConfig": {
+          "ExecutionTimeout": 840,
+          "RetentionPeriodInDays": 14,
+        },
+        "Environment": {
+          "Variables": {
+            "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+            "MAX_WAIT_MINUTES": "14",
+            "SNS_TOPIC_ARN": {
+              "Ref": "NotifierPipelineEventTopic1EB9FEF0",
+            },
+            "TARGET_PIPELINE_TAGS": "[{"key":"Notify","values":["true"]}]",
+            "WAIT_INTERVAL_SECONDS": "10",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "NotifierNotifierFunctionServiceRoleF39CFF54",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "NotifierNotifierFunctionAliaslive217356D8": {
+      "Properties": {
+        "FunctionName": {
+          "Ref": "NotifierNotifierFunction9B404806",
+        },
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "NotifierNotifierFunctionCurrentVersion5306DED16728af9b49b320c13ee76a73855c6988",
+            "Version",
+          ],
+        },
+        "Name": "live",
+      },
+      "Type": "AWS::Lambda::Alias",
+    },
+    "NotifierNotifierFunctionCurrentVersion5306DED16728af9b49b320c13ee76a73855c6988": {
+      "Metadata": {
+        "aws:cdk:do-not-refactor": true,
+      },
+      "Properties": {
+        "FunctionName": {
+          "Ref": "NotifierNotifierFunction9B404806",
+        },
+      },
+      "Type": "AWS::Lambda::Version",
+    },
+    "NotifierNotifierFunctionServiceRoleDefaultPolicy3F255123": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sns:Publish",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "NotifierPipelineEventTopic1EB9FEF0",
+              },
+            },
+            {
+              "Action": [
+                "codepipeline:GetPipelineExecution",
+                "codepipeline:ListTagsForResource",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":codepipeline:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "NotifierNotifierFunctionServiceRoleDefaultPolicy3F255123",
+        "Roles": [
+          {
+            "Ref": "NotifierNotifierFunctionServiceRoleF39CFF54",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "NotifierNotifierFunctionServiceRoleF39CFF54": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicDurableExecutionRolePolicy",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "NotifierOnPipelineExecutionStartedRule622BF6F1": {
+      "Properties": {
+        "EventPattern": {
+          "detail": {
+            "state": [
+              "STARTED",
+            ],
+          },
+          "detail-type": [
+            "CodePipeline Pipeline Execution State Change",
+          ],
+          "source": [
+            "aws.codepipeline",
+          ],
+        },
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Ref": "NotifierNotifierFunctionAliaslive217356D8",
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "NotifierOnPipelineExecutionStartedRuleAllowEventRuleSnapdefaultsNotifierNotifierFunctionAliaslive0AA280C17966CDDE": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "NotifierNotifierFunctionAliaslive217356D8",
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "NotifierOnPipelineExecutionStartedRule622BF6F1",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "NotifierPipelineEventTopic1EB9FEF0": {
+      "Type": "AWS::SNS::Topic",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`CodePipelineEventNotifier template snapshots for major props combinations matches snapshot for existing-topic-and-pattern: existing-topic-and-pattern 1`] = `
+{
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "ExistingTopicAA6FD6BC": {
+      "Type": "AWS::SNS::Topic",
+    },
+    "NotifierNotifierFunction9B404806": {
+      "DependsOn": [
+        "NotifierNotifierFunctionServiceRoleDefaultPolicy3F255123",
+        "NotifierNotifierFunctionServiceRoleF39CFF54",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "626da62c19609784f1df5ebb2ad6e0f07c7d8391623eae053590985479e70582.zip",
+        },
+        "Description": "src/funcs/notifier.lambda.ts",
+        "DurableConfig": {
+          "ExecutionTimeout": 840,
+          "RetentionPeriodInDays": 14,
+        },
+        "Environment": {
+          "Variables": {
+            "AWS_NODEJS_CONNECTION_REUSE_ENABLED": "1",
+            "MAX_WAIT_MINUTES": "14",
+            "SNS_TOPIC_ARN": {
+              "Ref": "ExistingTopicAA6FD6BC",
+            },
+            "TARGET_PIPELINE_TAGS": "[{"key":"Team","values":["platform","infra"]}]",
+            "WAIT_INTERVAL_SECONDS": "10",
+          },
+        },
+        "Handler": "index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "NotifierNotifierFunctionServiceRoleF39CFF54",
+            "Arn",
+          ],
+        },
+        "Runtime": "nodejs24.x",
+        "Timeout": 300,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "NotifierNotifierFunctionAliaslive217356D8": {
+      "Properties": {
+        "FunctionName": {
+          "Ref": "NotifierNotifierFunction9B404806",
+        },
+        "FunctionVersion": {
+          "Fn::GetAtt": [
+            "NotifierNotifierFunctionCurrentVersion5306DED15f9ae82d159166f1ccde5d7880baf14e",
+            "Version",
+          ],
+        },
+        "Name": "live",
+      },
+      "Type": "AWS::Lambda::Alias",
+    },
+    "NotifierNotifierFunctionCurrentVersion5306DED15f9ae82d159166f1ccde5d7880baf14e": {
+      "Metadata": {
+        "aws:cdk:do-not-refactor": true,
+      },
+      "Properties": {
+        "FunctionName": {
+          "Ref": "NotifierNotifierFunction9B404806",
+        },
+      },
+      "Type": "AWS::Lambda::Version",
+    },
+    "NotifierNotifierFunctionServiceRoleDefaultPolicy3F255123": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sns:Publish",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "ExistingTopicAA6FD6BC",
+              },
+            },
+            {
+              "Action": [
+                "codepipeline:GetPipelineExecution",
+                "codepipeline:ListTagsForResource",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":codepipeline:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":*",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "NotifierNotifierFunctionServiceRoleDefaultPolicy3F255123",
+        "Roles": [
+          {
+            "Ref": "NotifierNotifierFunctionServiceRoleF39CFF54",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "NotifierNotifierFunctionServiceRoleF39CFF54": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicDurableExecutionRolePolicy",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "NotifierOnPipelineExecutionStartedRule622BF6F1": {
+      "Properties": {
+        "EventPattern": {
+          "detail": {
+            "pipeline": [
+              "my-pipeline",
+            ],
+            "state": [
+              "STARTED",
+            ],
+          },
+          "detail-type": [
+            "CodePipeline Pipeline Execution State Change",
+          ],
+          "source": [
+            "aws.codepipeline",
+          ],
+        },
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Ref": "NotifierNotifierFunctionAliaslive217356D8",
+            },
+            "Id": "Target0",
+          },
+        ],
+      },
+      "Type": "AWS::Events::Rule",
+    },
+    "NotifierOnPipelineExecutionStartedRuleAllowEventRuleSnapexistingtopicandpatternNotifierNotifierFunctionAliaslive623C614DBF33DD59": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Ref": "NotifierNotifierFunctionAliaslive217356D8",
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "NotifierOnPipelineExecutionStartedRule622BF6F1",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;

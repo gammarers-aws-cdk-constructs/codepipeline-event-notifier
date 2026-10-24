@@ -4,7 +4,7 @@
 
 ### CodePipelineEventNotifier <a name="CodePipelineEventNotifier" id="codepipeline-event-notifier.CodePipelineEventNotifier"></a>
 
-Provisions an EventBridge rule that listens for CodePipeline execution STARTED events, then invokes a notifier Lambda which publishes execution state changes to an SNS topic.
+Provisions an EventBridge rule that listens for CodePipeline execution STARTED events, then invokes a durable notifier Lambda which publishes execution state changes to an SNS topic.
 
 #### Initializers <a name="Initializers" id="codepipeline-event-notifier.CodePipelineEventNotifier.Initializer"></a>
 
@@ -177,11 +177,12 @@ const codePipelineEventNotifierProps: CodePipelineEventNotifierProps = { ... }
 | **Name** | **Type** | **Description** |
 | --- | --- | --- |
 | <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.targetPipeline">targetPipeline</a></code> | <code><a href="#codepipeline-event-notifier.TargetPipeline">TargetPipeline</a></code> | Pipelines that should produce notifications, selected by resource tags. |
+| <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.durableRetentionPeriod">durableRetentionPeriod</a></code> | <code>aws-cdk-lib.Duration</code> | How long Lambda retains durable execution history after the execution closes. |
 | <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.eventPattern">eventPattern</a></code> | <code>aws-cdk-lib.aws_events.EventPattern</code> | EventBridge event pattern that triggers the notifier. |
 | <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.maxWaitDuration">maxWaitDuration</a></code> | <code>aws-cdk-lib.Duration</code> | Maximum duration to wait for execution state changes. |
-| <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.timeout">timeout</a></code> | <code>aws-cdk-lib.Duration</code> | Timeout for the notifier Lambda function. |
+| <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.timeout">timeout</a></code> | <code>aws-cdk-lib.Duration</code> | Timeout for a single notifier Lambda invocation. |
 | <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.topic">topic</a></code> | <code>aws-cdk-lib.aws_sns.ITopic</code> | SNS topic that receives CodePipeline execution notifications. |
-| <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.waitInterval">waitInterval</a></code> | <code>aws-cdk-lib.Duration</code> | Interval between `GetPipelineExecution` waits. |
+| <code><a href="#codepipeline-event-notifier.CodePipelineEventNotifierProps.property.waitInterval">waitInterval</a></code> | <code>aws-cdk-lib.Duration</code> | Interval between durable waits around `GetPipelineExecution` checks. |
 
 ---
 
@@ -194,6 +195,19 @@ public readonly targetPipeline: TargetPipeline;
 - *Type:* <a href="#codepipeline-event-notifier.TargetPipeline">TargetPipeline</a>
 
 Pipelines that should produce notifications, selected by resource tags.
+
+---
+
+##### `durableRetentionPeriod`<sup>Optional</sup> <a name="durableRetentionPeriod" id="codepipeline-event-notifier.CodePipelineEventNotifierProps.property.durableRetentionPeriod"></a>
+
+```typescript
+public readonly durableRetentionPeriod: Duration;
+```
+
+- *Type:* aws-cdk-lib.Duration
+- *Default:* Duration.days(14)
+
+How long Lambda retains durable execution history after the execution closes.
 
 ---
 
@@ -221,7 +235,8 @@ public readonly maxWaitDuration: Duration;
 
 Maximum duration to wait for execution state changes.
 
-Mapped to the notifier Lambda environment variable `MAX_WAIT_MINUTES`.
+Mapped to the notifier Lambda environment variable `MAX_WAIT_MINUTES`
+and to the durable function `executionTimeout`.
 
 ---
 
@@ -232,11 +247,11 @@ public readonly timeout: Duration;
 ```
 
 - *Type:* aws-cdk-lib.Duration
-- *Default:* Duration.minutes(15)
+- *Default:* Duration.minutes(5)
 
-Timeout for the notifier Lambda function.
+Timeout for a single notifier Lambda invocation.
 
-Should be greater than {@link maxWaitDuration}.
+Durable waits suspend between invocations, so this need not cover {@link maxWaitDuration}.
 
 ---
 
@@ -264,7 +279,7 @@ public readonly waitInterval: Duration;
 - *Type:* aws-cdk-lib.Duration
 - *Default:* Duration.seconds(10)
 
-Interval between `GetPipelineExecution` waits.
+Interval between durable waits around `GetPipelineExecution` checks.
 
 ---
 

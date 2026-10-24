@@ -1,6 +1,30 @@
 import { Duration, Stack, aws_events as events, aws_events_targets as targets, aws_iam as iam, aws_sns as sns } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { NotifierFunction } from '../funcs/notifier-function';
+import { NotifierFunction } from './funcs/notifier-function';
+import {
+  DEFAULT_MAX_WAIT_MINUTES,
+  DEFAULT_WAIT_INTERVAL_SECONDS,
+  ENV_MAX_WAIT_MINUTES,
+  ENV_SNS_TOPIC_ARN,
+  ENV_TARGET_PIPELINE_ARNS,
+  ENV_TARGET_PIPELINE_TAGS,
+  ENV_WAIT_INTERVAL_SECONDS,
+} from './settings/consts';
+
+/**
+ * Default timeout for a single notifier Lambda invocation, in minutes.
+ */
+const DEFAULT_LAMBDA_TIMEOUT_MINUTES = 5;
+
+/**
+ * Default durable execution history retention, in days.
+ */
+const DEFAULT_DURABLE_RETENTION_DAYS = 14;
+
+/**
+ * Alias name used as the EventBridge target (durable execution requires a qualified ARN).
+ */
+const NOTIFIER_ALIAS_NAME = 'live';
 
 /**
  * Tag filter for selecting CodePipeline pipelines.
@@ -54,7 +78,7 @@ export interface CodePipelineEventNotifierProps {
   readonly topic?: sns.ITopic;
 
   /**
-   * Interval between `GetPipelineExecution` waits.
+   * Interval between durable waits around `GetPipelineExecution` checks.
    *
    * @default Duration.seconds(10)
    */
@@ -62,19 +86,27 @@ export interface CodePipelineEventNotifierProps {
 
   /**
    * Maximum duration to wait for execution state changes.
-   * Mapped to the notifier Lambda environment variable `MAX_WAIT_MINUTES`.
+   * Mapped to the notifier Lambda environment variable `MAX_WAIT_MINUTES`
+   * and to the durable function `executionTimeout`.
    *
    * @default Duration.minutes(14)
    */
   readonly maxWaitDuration?: Duration;
 
   /**
-   * Timeout for the notifier Lambda function.
-   * Should be greater than {@link maxWaitDuration}.
+   * Timeout for a single notifier Lambda invocation.
+   * Durable waits suspend between invocations, so this need not cover {@link maxWaitDuration}.
    *
-   * @default Duration.minutes(15)
+   * @default Duration.minutes(5)
    */
   readonly timeout?: Duration;
+
+  /**
+   * How long Lambda retains durable execution history after the execution closes.
+   *
+   * @default Duration.days(14)
+   */
+  readonly durableRetentionPeriod?: Duration;
 
   /**
    * EventBridge event pattern that triggers the notifier.
@@ -161,7 +193,7 @@ const resolveTargetPipelineArns = (arns: string[] | undefined): string[] | undef
 
 /**
  * Provisions an EventBridge rule that listens for CodePipeline execution STARTED events,
- * then invokes a notifier Lambda which publishes execution state changes to an SNS topic.
+ * then invokes a durable notifier Lambda which publishes execution state changes to an SNS topic.
  */
 export class CodePipelineEventNotifier extends Construct {
   /**
@@ -188,9 +220,10 @@ export class CodePipelineEventNotifier extends Construct {
 
     this.topic = props.topic ?? new sns.Topic(this, 'PipelineEventTopic');
 
-    const waitInterval = props.waitInterval ?? Duration.seconds(10);
-    const maxWaitDuration = props.maxWaitDuration ?? Duration.minutes(14);
-    const timeout = props.timeout ?? Duration.minutes(15);
+    const waitInterval = props.waitInterval ?? Duration.seconds(DEFAULT_WAIT_INTERVAL_SECONDS);
+    const maxWaitDuration = props.maxWaitDuration ?? Duration.minutes(DEFAULT_MAX_WAIT_MINUTES);
+    const timeout = props.timeout ?? Duration.minutes(DEFAULT_LAMBDA_TIMEOUT_MINUTES);
+    const durableRetentionPeriod = props.durableRetentionPeriod ?? Duration.days(DEFAULT_DURABLE_RETENTION_DAYS);
     const eventPattern = props.eventPattern ?? {
       source: ['aws.codepipeline'],
       detailType: ['CodePipeline Pipeline Execution State Change'],
@@ -201,14 +234,21 @@ export class CodePipelineEventNotifier extends Construct {
 
     const fn = new NotifierFunction(this, 'NotifierFunction', {
       environment: {
-        SNS_TOPIC_ARN: this.topic.topicArn,
-        WAIT_INTERVAL_SECONDS: String(waitInterval.toSeconds()),
-        MAX_WAIT_MINUTES: String(maxWaitDuration.toMinutes({ integral: false })),
-        TARGET_PIPELINE_TAGS: JSON.stringify(targetPipelineTags),
-        ...(targetPipelineArns ? { TARGET_PIPELINE_ARNS: JSON.stringify(targetPipelineArns) } : {}),
+        [ENV_SNS_TOPIC_ARN]: this.topic.topicArn,
+        [ENV_WAIT_INTERVAL_SECONDS]: String(waitInterval.toSeconds()),
+        [ENV_MAX_WAIT_MINUTES]: String(maxWaitDuration.toMinutes({ integral: false })),
+        [ENV_TARGET_PIPELINE_TAGS]: JSON.stringify(targetPipelineTags),
+        ...(targetPipelineArns ? { [ENV_TARGET_PIPELINE_ARNS]: JSON.stringify(targetPipelineArns) } : {}),
       },
       timeout,
+      durableConfig: {
+        executionTimeout: maxWaitDuration,
+        retentionPeriod: durableRetentionPeriod,
+      },
     });
+
+    // Durable execution requires a qualified ARN (version or alias).
+    const liveAlias = fn.addAlias(NOTIFIER_ALIAS_NAME);
 
     // Allow the notifier to publish notifications and look up pipeline tags.
     this.topic.grantPublish(fn);
@@ -220,10 +260,10 @@ export class CodePipelineEventNotifier extends Construct {
       resources: pipelineIamResources,
     }));
 
-    // Trigger the notifier when matching CodePipeline execution events arrive.
+    // Trigger the durable notifier when matching CodePipeline execution events arrive.
     new events.Rule(this, 'OnPipelineExecutionStartedRule', {
       eventPattern,
-      targets: [new targets.LambdaFunction(fn)],
+      targets: [new targets.LambdaFunction(liveAlias)],
     });
   }
 }
