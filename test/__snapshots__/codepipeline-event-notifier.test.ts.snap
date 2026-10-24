@@ -20,7 +20,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "d1304903d6c80a3972e2460a1bd892fb4fe2f5dae9a36c26afc9a7a13eb7a1a1.zip",
+          "S3Key": "626da62c19609784f1df5ebb2ad6e0f07c7d8391623eae053590985479e70582.zip",
         },
         "Description": "src/funcs/notifier.lambda.ts",
         "DurableConfig": {
@@ -58,7 +58,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "NotifierNotifierFunctionCurrentVersion5306DED19e4fc45fc7cfebe00cdfd3ccd2aad030",
+            "NotifierNotifierFunctionCurrentVersion5306DED18e83f74ab26649f0fafc53d3ba2444cf",
             "Version",
           ],
         },
@@ -66,7 +66,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "NotifierNotifierFunctionCurrentVersion5306DED19e4fc45fc7cfebe00cdfd3ccd2aad030": {
+    "NotifierNotifierFunctionCurrentVersion5306DED18e83f74ab26649f0fafc53d3ba2444cf": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -236,7 +236,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "d1304903d6c80a3972e2460a1bd892fb4fe2f5dae9a36c26afc9a7a13eb7a1a1.zip",
+          "S3Key": "626da62c19609784f1df5ebb2ad6e0f07c7d8391623eae053590985479e70582.zip",
         },
         "Description": "src/funcs/notifier.lambda.ts",
         "DurableConfig": {
@@ -273,7 +273,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "NotifierNotifierFunctionCurrentVersion5306DED1d051427d8cc0d28dfb916c769d7694bd",
+            "NotifierNotifierFunctionCurrentVersion5306DED1b83bbbcc7d0978d68239214cb8a9918a",
             "Version",
           ],
         },
@@ -281,7 +281,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "NotifierNotifierFunctionCurrentVersion5306DED1d051427d8cc0d28dfb916c769d7694bd": {
+    "NotifierNotifierFunctionCurrentVersion5306DED1b83bbbcc7d0978d68239214cb8a9918a": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -470,7 +470,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "d1304903d6c80a3972e2460a1bd892fb4fe2f5dae9a36c26afc9a7a13eb7a1a1.zip",
+          "S3Key": "626da62c19609784f1df5ebb2ad6e0f07c7d8391623eae053590985479e70582.zip",
         },
         "Description": "src/funcs/notifier.lambda.ts",
         "DurableConfig": {
@@ -507,7 +507,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "NotifierNotifierFunctionCurrentVersion5306DED18f1704e005759e0392580b0bcb3976eb",
+            "NotifierNotifierFunctionCurrentVersion5306DED16728af9b49b320c13ee76a73855c6988",
             "Version",
           ],
         },
@@ -515,7 +515,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "NotifierNotifierFunctionCurrentVersion5306DED18f1704e005759e0392580b0bcb3976eb": {
+    "NotifierNotifierFunctionCurrentVersion5306DED16728af9b49b320c13ee76a73855c6988": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -707,7 +707,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "d1304903d6c80a3972e2460a1bd892fb4fe2f5dae9a36c26afc9a7a13eb7a1a1.zip",
+          "S3Key": "626da62c19609784f1df5ebb2ad6e0f07c7d8391623eae053590985479e70582.zip",
         },
         "Description": "src/funcs/notifier.lambda.ts",
         "DurableConfig": {
@@ -744,7 +744,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "NotifierNotifierFunctionCurrentVersion5306DED181bbff3bb229d7d8a8e1cb2142bffc0d",
+            "NotifierNotifierFunctionCurrentVersion5306DED15f9ae82d159166f1ccde5d7880baf14e",
             "Version",
           ],
         },
@@ -752,7 +752,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "NotifierNotifierFunctionCurrentVersion5306DED181bbff3bb229d7d8a8e1cb2142bffc0d": {
+    "NotifierNotifierFunctionCurrentVersion5306DED15f9ae82d159166f1ccde5d7880baf14e": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
