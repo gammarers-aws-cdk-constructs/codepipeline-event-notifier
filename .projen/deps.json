@@ -152,7 +152,7 @@
     },
     {
       "name": "construct-resource-criteria",
-      "version": "^0.1.7",
+      "version": "^0.2.0",
       "type": "peer"
     },
     {

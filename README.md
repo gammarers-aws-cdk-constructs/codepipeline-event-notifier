@@ -154,7 +154,7 @@ See the [API reference](./API.md).
 - Node.js `>= 20`
 - AWS CDK `v2` (`aws-cdk-lib` `^2.232.0`)
 - `constructs` `^10.5.1`
-- `construct-resource-criteria` `^0.1.7`
+- `construct-resource-criteria` `^0.2.0`
 - `lambda-failure-detector` `^0.2.3`
 
 ## License

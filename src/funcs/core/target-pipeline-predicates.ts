@@ -29,7 +29,7 @@ export const isPipelineTagFilterList = (value: unknown): value is PipelineTagFil
   }
 
   for (const item of value) {
-    if (isPipelineTagFilter(item)) {
+    if (!isPipelineTagFilter(item)) {
       return false;
     }
   }

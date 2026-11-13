@@ -155,36 +155,6 @@ export interface CodePipelinePipelineExecutionEventNotifierProps {
 }
 
 /**
- * Validates {@link TargetPipeline} tag criteria.
- *
- * @param tags tag criteria from construct props
- * @returns a copy of the validated criteria
- */
-const resolveTargetPipelineTags = (tags: readonly ConstructResourceTagCriteria[]): ConstructResourceTagCriteria[] => {
-  if (tags.length === 0) {
-    throw new Error('targetPipeline.tags must contain at least one value.');
-  }
-
-  const seenKeys = new Set<string>();
-  const normalized: ConstructResourceTagCriteria[] = [];
-
-  for (const [index, criteria] of tags.entries()) {
-    const propPath = `targetPipeline.tags[${index}]`;
-    ConstructResourceCriteria.assertTagCriteria(criteria, { propPath });
-    if (seenKeys.has(criteria.tagKey)) {
-      throw new Error(`targetPipeline.tags contains duplicate tagKey: ${criteria.tagKey}`);
-    }
-    seenKeys.add(criteria.tagKey);
-    normalized.push({
-      tagKey: criteria.tagKey,
-      tagValues: [...criteria.tagValues],
-    });
-  }
-
-  return normalized;
-};
-
-/**
  * Validates optional pipeline ARNs used for IAM and runtime allowlisting.
  *
  * @param arns pipeline ARNs from construct props
@@ -234,7 +204,9 @@ export class CodePipelinePipelineExecutionEventNotifier extends Construct {
   constructor(scope: Construct, id: string, props: CodePipelinePipelineExecutionEventNotifierProps) {
     super(scope, id);
 
-    const targetPipelineTags = resolveTargetPipelineTags(props.targetPipeline.tags);
+    const targetPipelineTags = ConstructResourceCriteria.resolveTagCriteria(props.targetPipeline.tags, {
+      propPath: 'targetPipeline.tags',
+    });
     const targetPipelineArns = resolveTargetPipelineArns(props.targetPipeline.arns);
     const pipelineIamResources = targetPipelineArns ?? [
       Stack.of(this).formatArn({
