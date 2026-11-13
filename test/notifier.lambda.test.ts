@@ -1,36 +1,18 @@
 import { LocalDurableTestRunner } from '@aws/durable-execution-sdk-js-testing';
 import {
+  CodePipelineClient,
   GetPipelineExecutionCommand,
   ListTagsForResourceCommand,
+  PipelineExecutionStatus,
 } from '@aws-sdk/client-codepipeline';
+import { PublishCommand, SNSClient } from '@aws-sdk/client-sns';
 import type { EventBridgeEvent } from 'aws-lambda';
-
-const mockSnsSend = jest.fn();
-const mockCodePipelineSend = jest.fn();
-const mockListTagsSend = jest.fn();
-const mockGetExecutionSend = jest.fn();
-
-jest.mock('@aws-sdk/client-sns', () => {
-  const actual = jest.requireActual('@aws-sdk/client-sns') as typeof import('@aws-sdk/client-sns');
-  return {
-    ...actual,
-    SNSClient: jest.fn().mockImplementation(() => ({
-      send: mockSnsSend,
-    })),
-  };
-});
-
-jest.mock('@aws-sdk/client-codepipeline', () => {
-  const actual = jest.requireActual('@aws-sdk/client-codepipeline') as typeof import('@aws-sdk/client-codepipeline');
-  return {
-    ...actual,
-    CodePipelineClient: jest.fn().mockImplementation(() => ({
-      send: mockCodePipelineSend,
-    })),
-  };
-});
-
+import { mockClient } from 'aws-sdk-client-mock';
+import 'aws-sdk-client-mock-jest';
 import { handler } from '../src/funcs/notifier.lambda';
+
+const snsMock = mockClient(SNSClient);
+const codepipelineMock = mockClient(CodePipelineClient);
 
 type CodePipelineExecutionStartedDetail = {
   'pipeline'?: string;
@@ -46,15 +28,17 @@ type CodePipelineExecutionStartedEvent = EventBridgeEvent<
 
 const TOPIC_ARN = 'arn:aws:sns:us-east-1:123456789012:pipeline-events';
 const PIPELINE_ARN = 'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline';
+const PIPELINE_NAME = 'my-pipeline';
+const EXECUTION_ID = 'exec-1';
 const TARGET_PIPELINE_TAGS = JSON.stringify([
   { key: 'Notify', values: ['true'] },
 ]);
 
 const makeEvent = (
   detail: CodePipelineExecutionStartedDetail = {
-    'pipeline': 'my-pipeline',
+    'pipeline': PIPELINE_NAME,
     'state': 'STARTED',
-    'execution-id': 'exec-1',
+    'execution-id': EXECUTION_ID,
   },
   resources: string[] = [PIPELINE_ARN],
 ): CodePipelineExecutionStartedEvent => ({
@@ -69,10 +53,35 @@ const makeEvent = (
   detail,
 });
 
-const publishedPayloads = (): Array<Record<string, unknown>> => mockSnsSend.mock.calls.map((call) => {
-  const command = call[0] as { input: { Message: string } };
-  return JSON.parse(command.input.Message) as Record<string, unknown>;
-});
+const publishedPayloads = (): Array<Record<string, unknown>> =>
+  snsMock.commandCalls(PublishCommand).map((call) => {
+    const message = call.args[0].input.Message;
+    if (typeof message !== 'string') {
+      throw new Error('PublishCommand Message must be a string');
+    }
+    const parsed: unknown = JSON.parse(message);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      throw new Error('PublishCommand Message must be a JSON object');
+    }
+    return parsed as Record<string, unknown>;
+  });
+
+const expectPublishedToTopic = (times: number): void => {
+  expect(snsMock).toHaveReceivedCommandTimes(PublishCommand, times);
+  expect(snsMock).toHaveReceivedCommandWith(PublishCommand, {
+    TopicArn: TOPIC_ARN,
+  });
+};
+
+const expectPipelineLookup = (): void => {
+  expect(codepipelineMock).toHaveReceivedCommandWith(ListTagsForResourceCommand, {
+    resourceArn: PIPELINE_ARN,
+  });
+  expect(codepipelineMock).toHaveReceivedCommandWith(GetPipelineExecutionCommand, {
+    pipelineName: PIPELINE_NAME,
+    pipelineExecutionId: EXECUTION_ID,
+  });
+};
 
 const runHandler = async (event: CodePipelineExecutionStartedEvent) => {
   const runner = new LocalDurableTestRunner({
@@ -93,24 +102,16 @@ describe('notifier.lambda handler', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    snsMock.reset();
+    codepipelineMock.reset();
+    snsMock.on(PublishCommand).resolves({});
+    codepipelineMock.on(ListTagsForResourceCommand).resolves({
+      tags: [{ key: 'Notify', value: 'true' }],
+    });
     process.env.SNS_TOPIC_ARN = TOPIC_ARN;
     process.env.WAIT_INTERVAL_SECONDS = '1';
     process.env.MAX_WAIT_MINUTES = '1';
     process.env.TARGET_PIPELINE_TAGS = TARGET_PIPELINE_TAGS;
-    mockSnsSend.mockResolvedValue({});
-    mockListTagsSend.mockResolvedValue({
-      tags: [{ key: 'Notify', value: 'true' }],
-    });
-    mockCodePipelineSend.mockImplementation((command: unknown) => {
-      if (command instanceof ListTagsForResourceCommand) {
-        return mockListTagsSend(command);
-      }
-      if (command instanceof GetPipelineExecutionCommand) {
-        return mockGetExecutionSend(command);
-      }
-      return Promise.reject(new Error('unexpected CodePipeline command'));
-    });
   });
 
   afterEach(() => {
@@ -129,18 +130,19 @@ describe('notifier.lambda handler', () => {
       },
       {
         name: 'missing execution-id',
-        detail: { pipeline: 'my-pipeline', state: 'STARTED' },
+        detail: { pipeline: PIPELINE_NAME, state: 'STARTED' },
       },
       {
         name: 'missing pipeline',
-        detail: { 'state': 'STARTED', 'execution-id': 'exec-1' },
+        detail: { 'state': 'STARTED', 'execution-id': EXECUTION_ID },
       },
     ])('publishes an error note when $name', async ({ detail }) => {
       const execution = await runHandler(makeEvent(detail));
 
       expect(execution.getStatus()).toBe('SUCCEEDED');
-      expect(mockListTagsSend).not.toHaveBeenCalled();
-      expect(mockGetExecutionSend).not.toHaveBeenCalled();
+      expect(codepipelineMock).not.toHaveReceivedCommand(ListTagsForResourceCommand);
+      expect(codepipelineMock).not.toHaveReceivedCommand(GetPipelineExecutionCommand);
+      expectPublishedToTopic(1);
       expect(publishedPayloads()).toEqual([
         expect.objectContaining({
           type: 'codepipeline.execution',
@@ -159,58 +161,63 @@ describe('notifier.lambda handler', () => {
     const execution = await runHandler(makeEvent());
 
     expect(execution.getStatus()).toBe('SUCCEEDED');
-    expect(mockListTagsSend).not.toHaveBeenCalled();
-    expect(mockGetExecutionSend).not.toHaveBeenCalled();
-    expect(publishedPayloads()).toEqual([]);
+    expect(codepipelineMock).not.toHaveReceivedCommand(ListTagsForResourceCommand);
+    expect(codepipelineMock).not.toHaveReceivedCommand(GetPipelineExecutionCommand);
+    expect(snsMock).not.toHaveReceivedCommand(PublishCommand);
   });
 
   it('looks up tags when the pipeline ARN is allowlisted', async () => {
     process.env.TARGET_PIPELINE_ARNS = JSON.stringify([PIPELINE_ARN]);
-    mockGetExecutionSend.mockResolvedValueOnce({
+    codepipelineMock.on(GetPipelineExecutionCommand).resolvesOnce({
       pipelineExecution: { status: 'Succeeded' },
     });
 
     const execution = await runHandler(makeEvent());
 
     expect(execution.getStatus()).toBe('SUCCEEDED');
-    expect(mockListTagsSend).toHaveBeenCalledTimes(1);
-    expect(mockGetExecutionSend).toHaveBeenCalledTimes(1);
+    expect(codepipelineMock).toHaveReceivedCommandTimes(ListTagsForResourceCommand, 1);
+    expect(codepipelineMock).toHaveReceivedCommandTimes(GetPipelineExecutionCommand, 1);
+    expectPipelineLookup();
   });
 
   it('ignores executions when pipeline tags do not match', async () => {
-    mockListTagsSend.mockResolvedValueOnce({
+    codepipelineMock.on(ListTagsForResourceCommand).resolvesOnce({
       tags: [{ key: 'Notify', value: 'false' }],
     });
 
     const execution = await runHandler(makeEvent());
 
     expect(execution.getStatus()).toBe('SUCCEEDED');
-    expect(mockListTagsSend).toHaveBeenCalledTimes(1);
-    expect(mockGetExecutionSend).not.toHaveBeenCalled();
-    expect(publishedPayloads()).toEqual([]);
+    expect(codepipelineMock).toHaveReceivedCommandTimes(ListTagsForResourceCommand, 1);
+    expect(codepipelineMock).toHaveReceivedCommandWith(ListTagsForResourceCommand, {
+      resourceArn: PIPELINE_ARN,
+    });
+    expect(codepipelineMock).not.toHaveReceivedCommand(GetPipelineExecutionCommand);
+    expect(snsMock).not.toHaveReceivedCommand(PublishCommand);
   });
 
   it('looks up tags with the EventBridge resource ARN', async () => {
-    mockGetExecutionSend.mockResolvedValueOnce({
+    codepipelineMock.on(GetPipelineExecutionCommand).resolvesOnce({
       pipelineExecution: { status: 'Succeeded' },
     });
 
     await runHandler(makeEvent());
 
-    expect(mockListTagsSend).toHaveBeenCalledWith(expect.any(ListTagsForResourceCommand));
-    const command = mockListTagsSend.mock.calls[0][0] as ListTagsForResourceCommand;
-    expect(command.input.resourceArn).toBe(PIPELINE_ARN);
+    expect(codepipelineMock).toHaveReceivedCommandWith(ListTagsForResourceCommand, {
+      resourceArn: PIPELINE_ARN,
+    });
   });
 
   it('falls back to a constructed pipeline ARN when resources are empty', async () => {
-    mockGetExecutionSend.mockResolvedValueOnce({
+    codepipelineMock.on(GetPipelineExecutionCommand).resolvesOnce({
       pipelineExecution: { status: 'Succeeded' },
     });
 
     await runHandler(makeEvent(undefined, []));
 
-    const command = mockListTagsSend.mock.calls[0][0] as ListTagsForResourceCommand;
-    expect(command.input.resourceArn).toBe(PIPELINE_ARN);
+    expect(codepipelineMock).toHaveReceivedCommandWith(ListTagsForResourceCommand, {
+      resourceArn: PIPELINE_ARN,
+    });
   });
 
   it('fails when the pipeline ARN cannot be resolved', async () => {
@@ -222,8 +229,9 @@ describe('notifier.lambda handler', () => {
     });
 
     expect(execution.getStatus()).toBe('FAILED');
-    expect(mockGetExecutionSend).not.toHaveBeenCalled();
-    expect(publishedPayloads()).toEqual([]);
+    expect(codepipelineMock).not.toHaveReceivedCommand(ListTagsForResourceCommand);
+    expect(codepipelineMock).not.toHaveReceivedCommand(GetPipelineExecutionCommand);
+    expect(snsMock).not.toHaveReceivedCommand(PublishCommand);
   });
 
   describe('terminal execution status', () => {
@@ -233,26 +241,28 @@ describe('notifier.lambda handler', () => {
       { status: 'Stopped', observedState: 'STOPPED' },
       { status: 'Superseded', observedState: 'SUPERSEDED' },
     ])('stops waiting when status becomes $status', async ({ status, observedState }) => {
-      mockGetExecutionSend.mockResolvedValueOnce({
-        pipelineExecution: { status },
+      codepipelineMock.on(GetPipelineExecutionCommand).resolvesOnce({
+        pipelineExecution: { status: status as unknown as PipelineExecutionStatus },
       });
 
       const execution = await runHandler(makeEvent());
 
       expect(execution.getStatus()).toBe('SUCCEEDED');
-      expect(mockGetExecutionSend).toHaveBeenCalledTimes(1);
+      expect(codepipelineMock).toHaveReceivedCommandTimes(GetPipelineExecutionCommand, 1);
+      expectPipelineLookup();
+      expectPublishedToTopic(2);
       expect(publishedPayloads()).toEqual([
         expect.objectContaining({
           phase: 'eventbridge',
           observedState: 'STARTED',
-          pipelineName: 'my-pipeline',
-          executionId: 'exec-1',
+          pipelineName: PIPELINE_NAME,
+          executionId: EXECUTION_ID,
         }),
         expect.objectContaining({
           phase: 'wait',
           observedState,
-          pipelineName: 'my-pipeline',
-          executionId: 'exec-1',
+          pipelineName: PIPELINE_NAME,
+          executionId: EXECUTION_ID,
         }),
       ]);
       expect(publishedPayloads().some((payload) => payload.note === 'Waiting timed out before terminal state.')).toBe(false);
@@ -260,15 +270,18 @@ describe('notifier.lambda handler', () => {
   });
 
   it('publishes status transitions until a terminal state', async () => {
-    mockGetExecutionSend
-      .mockResolvedValueOnce({ pipelineExecution: { status: 'InProgress' } })
-      .mockResolvedValueOnce({ pipelineExecution: { status: 'InProgress' } })
-      .mockResolvedValueOnce({ pipelineExecution: { status: 'Succeeded' } });
+    codepipelineMock
+      .on(GetPipelineExecutionCommand)
+      .resolvesOnce({ pipelineExecution: { status: 'InProgress' } })
+      .resolvesOnce({ pipelineExecution: { status: 'InProgress' } })
+      .resolvesOnce({ pipelineExecution: { status: 'Succeeded' } });
 
     const execution = await runHandler(makeEvent());
 
     expect(execution.getStatus()).toBe('SUCCEEDED');
-    expect(mockGetExecutionSend).toHaveBeenCalledTimes(3);
+    expect(codepipelineMock).toHaveReceivedCommandTimes(GetPipelineExecutionCommand, 3);
+    expectPipelineLookup();
+    expectPublishedToTopic(3);
     expect(publishedPayloads()).toEqual([
       expect.objectContaining({ phase: 'eventbridge', observedState: 'STARTED' }),
       expect.objectContaining({ phase: 'wait', observedState: 'INPROGRESS' }),
@@ -279,14 +292,17 @@ describe('notifier.lambda handler', () => {
   it('publishes a timeout note when the wait attempt budget elapses', async () => {
     process.env.WAIT_INTERVAL_SECONDS = '30';
     process.env.MAX_WAIT_MINUTES = '1';
-    mockGetExecutionSend.mockResolvedValue({
+    codepipelineMock.on(GetPipelineExecutionCommand).resolves({
       pipelineExecution: { status: 'InProgress' },
     });
 
     const execution = await runHandler(makeEvent());
 
     expect(execution.getStatus()).toBe('SUCCEEDED');
+    expect(codepipelineMock).toHaveReceivedCommandTimes(GetPipelineExecutionCommand, 2);
+    expectPipelineLookup();
     const payloads = publishedPayloads();
+    expectPublishedToTopic(payloads.length);
     expect(payloads[0]).toEqual(expect.objectContaining({
       phase: 'eventbridge',
       observedState: 'STARTED',
@@ -300,20 +316,19 @@ describe('notifier.lambda handler', () => {
       observedState: 'INPROGRESS',
       note: 'Waiting timed out before terminal state.',
     }));
-    // 1 minute / 30 seconds = 2 attempts
-    expect(mockGetExecutionSend).toHaveBeenCalledTimes(2);
   });
 
   it('defaults observedState to STARTED when detail.state is absent', async () => {
-    mockGetExecutionSend.mockResolvedValueOnce({
+    codepipelineMock.on(GetPipelineExecutionCommand).resolvesOnce({
       pipelineExecution: { status: 'Succeeded' },
     });
 
     await runHandler(makeEvent({
-      'pipeline': 'my-pipeline',
-      'execution-id': 'exec-1',
+      'pipeline': PIPELINE_NAME,
+      'execution-id': EXECUTION_ID,
     }));
 
+    expectPublishedToTopic(2);
     expect(publishedPayloads()[0]).toEqual(expect.objectContaining({
       phase: 'eventbridge',
       observedState: 'STARTED',
@@ -329,14 +344,15 @@ describe('notifier.lambda handler', () => {
   }) => {
     process.env.WAIT_INTERVAL_SECONDS = waitIntervalSeconds;
     process.env.MAX_WAIT_MINUTES = maxWaitMinutes;
-    mockGetExecutionSend.mockResolvedValueOnce({
+    codepipelineMock.on(GetPipelineExecutionCommand).resolvesOnce({
       pipelineExecution: { status: 'Succeeded' },
     });
 
     const execution = await runHandler(makeEvent());
 
     expect(execution.getStatus()).toBe('SUCCEEDED');
-    expect(mockGetExecutionSend).toHaveBeenCalledTimes(1);
-    expect(publishedPayloads()).toHaveLength(2);
+    expect(codepipelineMock).toHaveReceivedCommandTimes(GetPipelineExecutionCommand, 1);
+    expectPipelineLookup();
+    expectPublishedToTopic(2);
   });
 });
