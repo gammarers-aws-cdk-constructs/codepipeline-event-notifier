@@ -1,5 +1,6 @@
-import { App, Duration, Stack, aws_sns as sns } from 'aws-cdk-lib';
+import { App, Duration, Stack } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
+import { Topic } from 'aws-cdk-lib/aws-sns';
 import { CodePipelinePipelineExecutionEventNotifier, type CodePipelinePipelineExecutionEventNotifierProps } from '../src';
 import { expectDurableNotifierWiring } from './expect-durable-notifier-wiring';
 
@@ -76,7 +77,7 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
 
   it('reuses an existing topic and applies custom props', () => {
     const stack = new Stack(new App(), 'Custom');
-    const topic = new sns.Topic(stack, 'ExistingTopic');
+    const topic = new Topic(stack, 'ExistingTopic');
 
     new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       topic,
@@ -318,7 +319,7 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
 
     it('notifies the caller topic when alarmTopic is set', () => {
       const stack = new Stack(new App(), 'FailureDetectionTopic');
-      const alarmTopic = new sns.Topic(stack, 'AlarmTopic');
+      const alarmTopic = new Topic(stack, 'AlarmTopic');
       new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
         targetPipeline: defaultTargetPipeline,
         failureDetection: {
@@ -359,7 +360,7 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
       {
         name: 'existing-topic-and-pattern',
         buildProps: (stack: Stack): CodePipelinePipelineExecutionEventNotifierProps => ({
-          topic: new sns.Topic(stack, 'ExistingTopic'),
+          topic: new Topic(stack, 'ExistingTopic'),
           targetPipeline: {
             tags: [
               { key: 'Team', values: ['platform', 'infra'] },
@@ -381,7 +382,7 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
           targetPipeline: defaultTargetPipeline,
           failureDetection: {
             enabled: true,
-            alarmTopic: new sns.Topic(stack, 'AlarmTopic'),
+            alarmTopic: new Topic(stack, 'AlarmTopic'),
           },
         }),
       },
