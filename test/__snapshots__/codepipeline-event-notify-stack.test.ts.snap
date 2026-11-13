@@ -17,7 +17,7 @@ exports[`CodePipelineEventNotifyStack deploys the notifier with default durable 
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "CodePipelinePipelineExecutionEventNotifierNotifierFunctionCurrentVersionD51FF02269d196bff7002c06e085bedec0c52835",
+            "CodePipelinePipelineExecutionEventNotifierNotifierFunctionCurrentVersionD51FF022bb78521985a1af22212fbb7b88334118",
             "Version",
           ],
         },
@@ -25,7 +25,7 @@ exports[`CodePipelineEventNotifyStack deploys the notifier with default durable 
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "CodePipelinePipelineExecutionEventNotifierNotifierFunctionCurrentVersionD51FF02269d196bff7002c06e085bedec0c52835": {
+    "CodePipelinePipelineExecutionEventNotifierNotifierFunctionCurrentVersionD51FF022bb78521985a1af22212fbb7b88334118": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -46,7 +46,7 @@ exports[`CodePipelineEventNotifyStack deploys the notifier with default durable 
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "510aae03439403f37224a4e05d13ae4ffbcf4548c839eb44614a16adcbb333d8.zip",
+          "S3Key": "0140c695a355d60391aa9c1db3ebdb7a163feb82e7b4fcd50fd4a8bc85d1628e.zip",
         },
         "Description": "src/funcs/notifier.lambda.ts",
         "DurableConfig": {
