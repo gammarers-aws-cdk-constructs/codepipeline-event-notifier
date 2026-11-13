@@ -2,7 +2,7 @@ import { ProjenCdkConstructLibrary } from '@gammarers/projen-projects';
 const project = new ProjenCdkConstructLibrary({
   projenrcTs: true,
   releaseToNpm: true,
-  npmTrustedPublishing: false,
+  npmTrustedPublishing: true,
   cdkVersion: '2.232.0',
   name: 'codepipeline-pipeline-execution-event-notifier',
   repositoryUrl: 'https://github.com/gammarers-aws-cdk-constructs/codepipeline-pipeline-execution-event-notifier.git',
