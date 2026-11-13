@@ -36,3 +36,9 @@ export const DEFAULT_WAIT_INTERVAL_SECONDS = 10;
  * Default maximum wait duration for a pipeline execution, in minutes.
  */
 export const DEFAULT_MAX_WAIT_MINUTES = 14;
+
+/**
+ * Structured log event emitted when a pipeline execution wait ends without a terminal status.
+ * The construct's log metric filter matches this token.
+ */
+export const PIPELINE_EXECUTION_WAIT_TIMED_OUT_EVENT = 'PipelineExecutionWaitTimedOut';

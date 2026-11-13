@@ -20,6 +20,22 @@ const expectDurableNotifierWiring = (template: Template): void => {
   template.resourceCountIs('AWS::Lambda::Alias', 1);
   template.resourceCountIs('AWS::Lambda::Permission', 1);
   template.resourceCountIs('AWS::Events::Rule', 1);
+  template.resourceCountIs('AWS::Logs::LogGroup', 1);
+
+  template.hasResource('AWS::Logs::LogGroup', {
+    DeletionPolicy: 'RetainExceptOnCreate',
+    UpdateReplacePolicy: 'Retain',
+    Properties: Match.objectLike({
+      RetentionInDays: 30,
+    }),
+  });
+
+  const logGroupLogicalId = Object.keys(template.findResources('AWS::Logs::LogGroup'))[0];
+  template.hasResourceProperties('AWS::Lambda::Function', {
+    LoggingConfig: {
+      LogGroup: { Ref: logGroupLogicalId },
+    },
+  });
 
   template.hasResourceProperties('AWS::Lambda::Alias', {
     Name: 'live',
@@ -319,6 +335,75 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
     });
   });
 
+  describe('failure detection', () => {
+    it('creates no alarms when failure detection is omitted', () => {
+      const stack = new Stack(new App(), 'NoFailureDetection');
+      new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
+        targetPipeline: defaultTargetPipeline,
+      });
+
+      const template = Template.fromStack(stack);
+      template.resourceCountIs('AWS::CloudWatch::Alarm', 0);
+      template.resourceCountIs('AWS::Logs::MetricFilter', 0);
+    });
+
+    it('alarms on Lambda errors, throttles, and the wait-timeout log without an alarm topic', () => {
+      const stack = new Stack(new App(), 'FailureDetection');
+      new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
+        targetPipeline: defaultTargetPipeline,
+        failureDetection: {
+          enabled: true,
+        },
+      });
+
+      const template = Template.fromStack(stack);
+      template.resourceCountIs('AWS::CloudWatch::Alarm', 3);
+      template.resourceCountIs('AWS::Logs::MetricFilter', 1);
+      template.hasResourceProperties('AWS::Logs::MetricFilter', {
+        FilterPattern: '"PipelineExecutionWaitTimedOut"',
+        MetricTransformations: [
+          Match.objectLike({
+            MetricNamespace: 'CodePipelinePipelineExecutionEventNotifier',
+            MetricName: 'PipelineExecutionWaitTimedOut',
+          }),
+        ],
+      });
+      template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+        Namespace: 'AWS/Lambda',
+        MetricName: 'Errors',
+      });
+      template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+        Namespace: 'AWS/Lambda',
+        MetricName: 'Throttles',
+      });
+      const alarms = template.findResources('AWS::CloudWatch::Alarm');
+      for (const alarm of Object.values(alarms)) {
+        expect(alarm.Properties.AlarmActions).toBeUndefined();
+      }
+    });
+
+    it('notifies the caller topic when alarmTopic is set', () => {
+      const stack = new Stack(new App(), 'FailureDetectionTopic');
+      const alarmTopic = new sns.Topic(stack, 'AlarmTopic');
+      new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
+        targetPipeline: defaultTargetPipeline,
+        failureDetection: {
+          enabled: true,
+          alarmTopic,
+        },
+      });
+
+      const template = Template.fromStack(stack);
+      const topicLogicalId = Object.keys(template.findResources('AWS::SNS::Topic')).find((id) => id.startsWith('AlarmTopic'));
+      expect(topicLogicalId).toBeDefined();
+      const alarms = template.findResources('AWS::CloudWatch::Alarm');
+      expect(Object.keys(alarms)).toHaveLength(3);
+      for (const alarm of Object.values(alarms)) {
+        expect(alarm.Properties.AlarmActions).toEqual([{ Ref: topicLogicalId }]);
+      }
+    });
+  });
+
   describe('template snapshots for major props combinations', () => {
     it.each([
       {
@@ -353,6 +438,16 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
               state: ['STARTED'],
               pipeline: ['my-pipeline'],
             },
+          },
+        }),
+      },
+      {
+        name: 'failure-detection',
+        buildProps: (stack: Stack): CodePipelinePipelineExecutionEventNotifierProps => ({
+          targetPipeline: defaultTargetPipeline,
+          failureDetection: {
+            enabled: true,
+            alarmTopic: new sns.Topic(stack, 'AlarmTopic'),
           },
         }),
       },

@@ -160,6 +160,57 @@ SNS topic that receives CodePipeline execution notifications.
 
 ## Structs <a name="Structs" id="Structs"></a>
 
+### CodePipelinePipelineExecutionEventNotifierFailureDetectionProps <a name="CodePipelinePipelineExecutionEventNotifierFailureDetectionProps" id="codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierFailureDetectionProps"></a>
+
+Opt-in CloudWatch alarms for {@link CodePipelinePipelineExecutionEventNotifier}.
+
+Alarms are created only when `enabled` is true.
+This construct does not create an SNS topic for those alarms.
+
+#### Initializer <a name="Initializer" id="codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierFailureDetectionProps.Initializer"></a>
+
+```typescript
+import { CodePipelinePipelineExecutionEventNotifierFailureDetectionProps } from 'codepipeline-pipeline-execution-event-notifier'
+
+const codePipelinePipelineExecutionEventNotifierFailureDetectionProps: CodePipelinePipelineExecutionEventNotifierFailureDetectionProps = { ... }
+```
+
+#### Properties <a name="Properties" id="Properties"></a>
+
+| **Name** | **Type** | **Description** |
+| --- | --- | --- |
+| <code><a href="#codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierFailureDetectionProps.property.alarmTopic">alarmTopic</a></code> | <code>aws-cdk-lib.aws_sns.ITopic</code> | SNS topic for alarm notifications. |
+| <code><a href="#codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierFailureDetectionProps.property.enabled">enabled</a></code> | <code>boolean</code> | When true, creates failure detection alarms and log-based metrics. |
+
+---
+
+##### `alarmTopic`<sup>Optional</sup> <a name="alarmTopic" id="codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierFailureDetectionProps.property.alarmTopic"></a>
+
+```typescript
+public readonly alarmTopic: ITopic;
+```
+
+- *Type:* aws-cdk-lib.aws_sns.ITopic
+
+SNS topic for alarm notifications.
+
+When omitted, alarms are created without SNS actions.
+
+---
+
+##### `enabled`<sup>Optional</sup> <a name="enabled" id="codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierFailureDetectionProps.property.enabled"></a>
+
+```typescript
+public readonly enabled: boolean;
+```
+
+- *Type:* boolean
+- *Default:* false when omitted
+
+When true, creates failure detection alarms and log-based metrics.
+
+---
+
 ### CodePipelinePipelineExecutionEventNotifierProps <a name="CodePipelinePipelineExecutionEventNotifierProps" id="codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierProps"></a>
 
 Properties for {@link CodePipelinePipelineExecutionEventNotifier}.
@@ -179,6 +230,7 @@ const codePipelinePipelineExecutionEventNotifierProps: CodePipelinePipelineExecu
 | <code><a href="#codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierProps.property.targetPipeline">targetPipeline</a></code> | <code><a href="#codepipeline-pipeline-execution-event-notifier.TargetPipeline">TargetPipeline</a></code> | Pipelines that should produce notifications, selected by resource tags. |
 | <code><a href="#codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierProps.property.durableRetentionPeriod">durableRetentionPeriod</a></code> | <code>aws-cdk-lib.Duration</code> | How long Lambda retains durable execution history after the execution closes. |
 | <code><a href="#codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierProps.property.eventPattern">eventPattern</a></code> | <code>aws-cdk-lib.aws_events.EventPattern</code> | EventBridge event pattern that triggers the notifier. |
+| <code><a href="#codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierProps.property.failureDetection">failureDetection</a></code> | <code><a href="#codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierFailureDetectionProps">CodePipelinePipelineExecutionEventNotifierFailureDetectionProps</a></code> | Opt-in CloudWatch alarms for Lambda `Errors`, `Throttles`, and a wait-timeout log. |
 | <code><a href="#codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierProps.property.maxWaitDuration">maxWaitDuration</a></code> | <code>aws-cdk-lib.Duration</code> | Maximum duration to wait for execution state changes. |
 | <code><a href="#codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierProps.property.timeout">timeout</a></code> | <code>aws-cdk-lib.Duration</code> | Timeout for a single notifier Lambda invocation. |
 | <code><a href="#codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierProps.property.topic">topic</a></code> | <code>aws-cdk-lib.aws_sns.ITopic</code> | SNS topic that receives CodePipeline execution notifications. |
@@ -221,6 +273,21 @@ public readonly eventPattern: EventPattern;
 - *Default:* CodePipeline Pipeline Execution State Change with `state=STARTED`
 
 EventBridge event pattern that triggers the notifier.
+
+---
+
+##### `failureDetection`<sup>Optional</sup> <a name="failureDetection" id="codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierProps.property.failureDetection"></a>
+
+```typescript
+public readonly failureDetection: CodePipelinePipelineExecutionEventNotifierFailureDetectionProps;
+```
+
+- *Type:* <a href="#codepipeline-pipeline-execution-event-notifier.CodePipelinePipelineExecutionEventNotifierFailureDetectionProps">CodePipelinePipelineExecutionEventNotifierFailureDetectionProps</a>
+- *Default:* failure detection is omitted and no alarms are created
+
+Opt-in CloudWatch alarms for Lambda `Errors`, `Throttles`, and a wait-timeout log.
+
+Pass an existing topic as `alarmTopic` when the alarms should notify.
 
 ---
 

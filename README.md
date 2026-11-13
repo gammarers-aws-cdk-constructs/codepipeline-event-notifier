@@ -28,6 +28,10 @@ CDK construct that listens to **AWS CodePipeline execution STARTED** events via 
 
 CodePipeline and SNS calls retry inside the AWS SDK client (`maxAttempts` 3). One attempt allows 5 seconds to connect and 30 seconds for the response. The handler does not add its own retry loop. The overall wait stops at `maxWaitDuration`.
 
+A wait that ends without a terminal status logs `PipelineExecutionWaitTimedOut` and still completes the invocation, so Lambda `Errors` stays at zero. Set `failureDetection.enabled` to alarm on that log plus Lambda `Errors` and `Throttles`. Pass an existing SNS topic as `failureDetection.alarmTopic` when those alarms should notify. This construct does not create an alarm topic.
+
+Notifier logs go to a dedicated CloudWatch log group kept for 30 days. A failed first create deletes that group on rollback. After a successful create, deleting or replacing the stack keeps the logs.
+
 ## Installation
 
 ### npm
@@ -131,6 +135,7 @@ export class MyStack extends Stack {
 | `timeout` | `Duration` | `5 minutes` | Per-invocation Lambda timeout (durable waits suspend between invocations) |
 | `durableRetentionPeriod` | `Duration` | `14 days` | How long Lambda retains durable execution history |
 | `eventPattern` | `events.EventPattern` | CodePipeline `STARTED` | EventBridge rule filter |
+| `failureDetection` | `CodePipelinePipelineExecutionEventNotifierFailureDetectionProps` | omitted | Opt-in CloudWatch alarms. `enabled: true` alarms on Lambda `Errors`, `Throttles`, and the wait-timeout log. `alarmTopic` is an existing SNS topic |
 
 The notifier Lambda uses these environment variables (set by the construct from props):
 
@@ -149,6 +154,7 @@ See the [API reference](./API.md).
 - Node.js `>= 20`
 - AWS CDK `v2` (`aws-cdk-lib` `^2.232.0`)
 - `constructs` `^10.5.1`
+- `lambda-failure-detector` `^0.2.3`
 
 ## License
 

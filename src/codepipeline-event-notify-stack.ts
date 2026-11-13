@@ -30,6 +30,7 @@ export class CodePipelineEventNotifyStack extends Stack {
       timeout: props.timeout,
       durableRetentionPeriod: props.durableRetentionPeriod,
       eventPattern: props.eventPattern,
+      failureDetection: props.failureDetection,
     });
   }
 }

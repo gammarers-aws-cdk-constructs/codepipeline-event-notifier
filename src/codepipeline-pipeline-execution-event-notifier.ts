@@ -1,5 +1,15 @@
-import { Duration, Stack, aws_events as events, aws_events_targets as targets, aws_iam as iam, aws_sns as sns } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
+import { Rule, type EventPattern } from 'aws-cdk-lib/aws-events';
+import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { Topic, type ITopic } from 'aws-cdk-lib/aws-sns';
 import { Construct } from 'constructs';
+import {
+  createLambdaFailureDetector,
+  type LambdaFailureDetection,
+  type LogFailureFilter,
+} from 'lambda-failure-detector';
 import { NotifierFunction } from './funcs/notifier-function';
 import {
   DEFAULT_MAX_WAIT_MINUTES,
@@ -9,6 +19,7 @@ import {
   ENV_TARGET_PIPELINE_ARNS,
   ENV_TARGET_PIPELINE_TAGS,
   ENV_WAIT_INTERVAL_SECONDS,
+  PIPELINE_EXECUTION_WAIT_TIMED_OUT_EVENT,
 } from './settings/consts';
 
 /**
@@ -25,6 +36,29 @@ const DEFAULT_DURABLE_RETENTION_DAYS = 14;
  * Alias name used as the EventBridge target (durable execution requires a qualified ARN).
  */
 const NOTIFIER_ALIAS_NAME = 'live';
+
+/**
+ * CloudWatch Logs retention for the notifier Lambda.
+ * Kept after a successful create so a deleted or replaced stack can still be investigated.
+ */
+const NOTIFIER_LOG_RETENTION = RetentionDays.ONE_MONTH;
+
+/**
+ * Custom metric namespace for notifier log alarms.
+ */
+const NOTIFIER_FAILURE_METRIC_NAMESPACE = 'CodePipelinePipelineExecutionEventNotifier';
+
+/**
+ * Log metric filters for business failures that do not increment Lambda `Errors`.
+ */
+const NOTIFIER_LOG_FAILURE_FILTERS: LogFailureFilter[] = [
+  {
+    id: PIPELINE_EXECUTION_WAIT_TIMED_OUT_EVENT,
+    filterPattern: `"${PIPELINE_EXECUTION_WAIT_TIMED_OUT_EVENT}"`,
+    metricNamespace: NOTIFIER_FAILURE_METRIC_NAMESPACE,
+    metricName: PIPELINE_EXECUTION_WAIT_TIMED_OUT_EVENT,
+  },
+];
 
 /**
  * Tag filter for selecting CodePipeline pipelines.
@@ -61,6 +95,13 @@ export interface TargetPipeline {
 }
 
 /**
+ * Opt-in CloudWatch alarms for {@link CodePipelinePipelineExecutionEventNotifier}.
+ * Alarms are created only when `enabled` is true.
+ * This construct does not create an SNS topic for those alarms.
+ */
+export interface CodePipelinePipelineExecutionEventNotifierFailureDetectionProps extends LambdaFailureDetection {}
+
+/**
  * Properties for {@link CodePipelinePipelineExecutionEventNotifier}.
  */
 export interface CodePipelinePipelineExecutionEventNotifierProps {
@@ -75,7 +116,7 @@ export interface CodePipelinePipelineExecutionEventNotifierProps {
    *
    * @default - a new topic is created
    */
-  readonly topic?: sns.ITopic;
+  readonly topic?: ITopic;
 
   /**
    * Interval between durable waits around `GetPipelineExecution` checks.
@@ -113,7 +154,15 @@ export interface CodePipelinePipelineExecutionEventNotifierProps {
    *
    * @default CodePipeline Pipeline Execution State Change with `state=STARTED`
    */
-  readonly eventPattern?: events.EventPattern;
+  readonly eventPattern?: EventPattern;
+
+  /**
+   * Opt-in CloudWatch alarms for Lambda `Errors`, `Throttles`, and a wait-timeout log.
+   * Pass an existing topic as `alarmTopic` when the alarms should notify.
+   *
+   * @default failure detection is omitted and no alarms are created
+   */
+  readonly failureDetection?: CodePipelinePipelineExecutionEventNotifierFailureDetectionProps;
 }
 
 /**
@@ -199,7 +248,7 @@ export class CodePipelinePipelineExecutionEventNotifier extends Construct {
   /**
    * SNS topic that receives CodePipeline execution notifications.
    */
-  public readonly topic: sns.ITopic;
+  public readonly topic: ITopic;
 
   /**
    * @param scope the construct scope
@@ -218,7 +267,7 @@ export class CodePipelinePipelineExecutionEventNotifier extends Construct {
       }),
     ];
 
-    this.topic = props.topic ?? new sns.Topic(this, 'PipelineEventTopic');
+    this.topic = props.topic ?? new Topic(this, 'PipelineEventTopic');
 
     const waitInterval = props.waitInterval ?? Duration.seconds(DEFAULT_WAIT_INTERVAL_SECONDS);
     const maxWaitDuration = props.maxWaitDuration ?? Duration.minutes(DEFAULT_MAX_WAIT_MINUTES);
@@ -232,7 +281,14 @@ export class CodePipelinePipelineExecutionEventNotifier extends Construct {
       },
     };
 
+    // A failed first create still deletes the group. After a successful create, stack deletion or replacement keeps the logs.
+    const logGroup = new LogGroup(this, 'NotifierLogGroup', {
+      retention: NOTIFIER_LOG_RETENTION,
+      removalPolicy: RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
+    });
+
     const fn = new NotifierFunction(this, 'NotifierFunction', {
+      logGroup,
       environment: {
         [ENV_SNS_TOPIC_ARN]: this.topic.topicArn,
         [ENV_WAIT_INTERVAL_SECONDS]: String(waitInterval.toSeconds()),
@@ -250,9 +306,17 @@ export class CodePipelinePipelineExecutionEventNotifier extends Construct {
     // Durable execution requires a qualified ARN (version or alias).
     const liveAlias = fn.addAlias(NOTIFIER_ALIAS_NAME);
 
+    // Alarms use the caller's topic. The wait-timeout log does not increment Lambda Errors.
+    createLambdaFailureDetector(this, 'FailureDetector', {
+      failureDetection: props.failureDetection,
+      lambdaFunction: fn,
+      logGroup,
+      logFilters: NOTIFIER_LOG_FAILURE_FILTERS,
+    });
+
     // Allow the notifier to publish notifications and look up pipeline tags.
     this.topic.grantPublish(fn);
-    fn.addToRolePolicy(new iam.PolicyStatement({
+    fn.addToRolePolicy(new PolicyStatement({
       actions: [
         'codepipeline:GetPipelineExecution',
         'codepipeline:ListTagsForResource',
@@ -261,9 +325,9 @@ export class CodePipelinePipelineExecutionEventNotifier extends Construct {
     }));
 
     // Trigger the durable notifier when matching CodePipeline execution events arrive.
-    new events.Rule(this, 'OnPipelineExecutionStartedRule', {
+    new Rule(this, 'OnPipelineExecutionStartedRule', {
       eventPattern,
-      targets: [new targets.LambdaFunction(liveAlias)],
+      targets: [new LambdaFunction(liveAlias)],
     });
   }
 }

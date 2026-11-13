@@ -27,6 +27,7 @@ import {
   ENV_TARGET_PIPELINE_ARNS,
   ENV_TARGET_PIPELINE_TAGS,
   ENV_WAIT_INTERVAL_SECONDS,
+  PIPELINE_EXECUTION_WAIT_TIMED_OUT_EVENT,
 } from '../settings/consts';
 
 /**
@@ -159,6 +160,14 @@ const waitPipelineExecution = async (params: {
 
     if (!hasMoreWaitAttempts(attempt, maxAttempts)) {
       await durable.step('publish-timeout', async () => {
+        // Lambda Errors stays at zero because the invocation still completes after the SNS note.
+        console.error(JSON.stringify({
+          level: 'ERROR',
+          event: PIPELINE_EXECUTION_WAIT_TIMED_OUT_EVENT,
+          pipelineName,
+          executionId,
+          observedState: status,
+        }));
         await publish(topicArn, {
           type: 'codepipeline.execution',
           phase: 'wait',

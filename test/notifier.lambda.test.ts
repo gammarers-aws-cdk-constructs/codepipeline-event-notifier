@@ -296,9 +296,12 @@ describe('notifier.lambda handler', () => {
       pipelineExecution: { status: 'InProgress' },
     });
 
+    const errorLog = jest.spyOn(console, 'error').mockImplementation(() => undefined);
     const execution = await runHandler(makeEvent());
 
     expect(execution.getStatus()).toBe('SUCCEEDED');
+    expect(errorLog).toHaveBeenCalledWith(expect.stringContaining('PipelineExecutionWaitTimedOut'));
+    errorLog.mockRestore();
     expect(codepipelineMock).toHaveReceivedCommandTimes(GetPipelineExecutionCommand, 2);
     expectPipelineLookup();
     const payloads = publishedPayloads();

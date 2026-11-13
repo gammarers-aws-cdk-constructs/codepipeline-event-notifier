@@ -17,7 +17,7 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "CodePipelinePipelineExecutionEventNotifierNotifierFunctionCurrentVersionD51FF0225837ad7010965b85829c4c2b559e6186",
+            "CodePipelinePipelineExecutionEventNotifierNotifierFunctionCurrentVersionD51FF022b49a182a84d59a11a76ed1e6c0f3b140",
             "Version",
           ],
         },
@@ -25,7 +25,7 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "CodePipelinePipelineExecutionEventNotifierNotifierFunctionCurrentVersionD51FF0225837ad7010965b85829c4c2b559e6186": {
+    "CodePipelinePipelineExecutionEventNotifierNotifierFunctionCurrentVersionD51FF022b49a182a84d59a11a76ed1e6c0f3b140": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -46,7 +46,7 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "2211acb8c07cce73566b0452192603e3ffce6ce1e7c1f5f63498d1e1ca3e9dbb.zip",
+          "S3Key": "510aae03439403f37224a4e05d13ae4ffbcf4548c839eb44614a16adcbb333d8.zip",
         },
         "Description": "src/funcs/notifier.lambda.ts",
         "DurableConfig": {
@@ -65,6 +65,11 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
           },
         },
         "Handler": "index.handler",
+        "LoggingConfig": {
+          "LogGroup": {
+            "Ref": "CodePipelinePipelineExecutionEventNotifierNotifierLogGroupDB6DDF6B",
+          },
+        },
         "Role": {
           "Fn::GetAtt": [
             "CodePipelinePipelineExecutionEventNotifierNotifierFunctionServiceRoleAB372C4E",
@@ -156,6 +161,14 @@ exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
         ],
       },
       "Type": "AWS::IAM::Policy",
+    },
+    "CodePipelinePipelineExecutionEventNotifierNotifierLogGroupDB6DDF6B": {
+      "DeletionPolicy": "RetainExceptOnCreate",
+      "Properties": {
+        "RetentionInDays": 30,
+      },
+      "Type": "AWS::Logs::LogGroup",
+      "UpdateReplacePolicy": "Retain",
     },
     "CodePipelinePipelineExecutionEventNotifierOnPipelineExecutionStartedRule28ED2025": {
       "Properties": {

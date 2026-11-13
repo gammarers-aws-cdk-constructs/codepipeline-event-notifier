@@ -458,7 +458,8 @@
             "ts-node",
             "typescript",
             "aws-cdk-lib",
-            "constructs"
+            "constructs",
+            "lambda-failure-detector"
           ]
         },
         {
