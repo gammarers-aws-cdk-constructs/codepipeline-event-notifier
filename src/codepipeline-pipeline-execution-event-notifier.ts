@@ -61,9 +61,9 @@ export interface TargetPipeline {
 }
 
 /**
- * Properties for {@link CodePipelineEventNotifier}.
+ * Properties for {@link CodePipelinePipelineExecutionEventNotifier}.
  */
-export interface CodePipelineEventNotifierProps {
+export interface CodePipelinePipelineExecutionEventNotifierProps {
   /**
    * Pipelines that should produce notifications, selected by resource tags.
    */
@@ -195,7 +195,7 @@ const resolveTargetPipelineArns = (arns: string[] | undefined): string[] | undef
  * Provisions an EventBridge rule that listens for CodePipeline execution STARTED events,
  * then invokes a durable notifier Lambda which publishes execution state changes to an SNS topic.
  */
-export class CodePipelineEventNotifier extends Construct {
+export class CodePipelinePipelineExecutionEventNotifier extends Construct {
   /**
    * SNS topic that receives CodePipeline execution notifications.
    */
@@ -206,7 +206,7 @@ export class CodePipelineEventNotifier extends Construct {
    * @param id the construct id
    * @param props construct properties
    */
-  constructor(scope: Construct, id: string, props: CodePipelineEventNotifierProps) {
+  constructor(scope: Construct, id: string, props: CodePipelinePipelineExecutionEventNotifierProps) {
     super(scope, id);
 
     const targetPipelineTags = resolveTargetPipelineTags(props.targetPipeline);

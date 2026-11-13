@@ -1,17 +1,17 @@
 import { Stack, type StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import {
-  CodePipelineEventNotifier,
-  type CodePipelineEventNotifierProps,
-} from './codepipeline-event-notifier';
+  CodePipelinePipelineExecutionEventNotifier,
+  type CodePipelinePipelineExecutionEventNotifierProps,
+} from './codepipeline-pipeline-execution-event-notifier';
 
 /**
  * Properties for {@link CodePipelineEventNotifyStack}.
  */
-export interface CodePipelineEventNotifyStackProps extends CodePipelineEventNotifierProps, StackProps {}
+export interface CodePipelineEventNotifyStackProps extends CodePipelinePipelineExecutionEventNotifierProps, StackProps {}
 
 /**
- * Example stack wiring up {@link CodePipelineEventNotifier}.
+ * Example stack wiring up {@link CodePipelinePipelineExecutionEventNotifier}.
  */
 export class CodePipelineEventNotifyStack extends Stack {
   /**
@@ -22,7 +22,7 @@ export class CodePipelineEventNotifyStack extends Stack {
   constructor(scope: Construct, id: string, props: CodePipelineEventNotifyStackProps) {
     super(scope, id, props);
 
-    new CodePipelineEventNotifier(this, 'CodePipelineEventNotifier', {
+    new CodePipelinePipelineExecutionEventNotifier(this, 'CodePipelinePipelineExecutionEventNotifier', {
       targetPipeline: props.targetPipeline,
       topic: props.topic,
       waitInterval: props.waitInterval,

@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`CodePipelineEventNotifier template snapshots for major props combinations matches snapshot for arns-allowlist: arns-allowlist 1`] = `
+exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major props combinations matches snapshot for arns-allowlist: arns-allowlist 1`] = `
 {
   "Parameters": {
     "BootstrapVersion": {
@@ -216,7 +216,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
 }
 `;
 
-exports[`CodePipelineEventNotifier template snapshots for major props combinations matches snapshot for custom-timing: custom-timing 1`] = `
+exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major props combinations matches snapshot for custom-timing: custom-timing 1`] = `
 {
   "Parameters": {
     "BootstrapVersion": {
@@ -450,7 +450,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
 }
 `;
 
-exports[`CodePipelineEventNotifier template snapshots for major props combinations matches snapshot for defaults: defaults 1`] = `
+exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major props combinations matches snapshot for defaults: defaults 1`] = `
 {
   "Parameters": {
     "BootstrapVersion": {
@@ -684,7 +684,7 @@ exports[`CodePipelineEventNotifier template snapshots for major props combinatio
 }
 `;
 
-exports[`CodePipelineEventNotifier template snapshots for major props combinations matches snapshot for existing-topic-and-pattern: existing-topic-and-pattern 1`] = `
+exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major props combinations matches snapshot for existing-topic-and-pattern: existing-topic-and-pattern 1`] = `
 {
   "Parameters": {
     "BootstrapVersion": {

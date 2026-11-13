@@ -1,11 +1,11 @@
-# CodePipeline Event Notifier (CDK v2)
+# CodePipeline Pipeline Execution Event Notifier (CDK v2)
 
-[![npm version](https://img.shields.io/npm/v/codepipeline-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-event-notifier)
-[![license](https://img.shields.io/npm/l/codepipeline-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-event-notifier)
-[![Node.js](https://img.shields.io/node/v/codepipeline-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-event-notifier)
-[![build](https://img.shields.io/github/actions/workflow/status/gammarers-aws-cdk-constructs/codepipeline-event-notifier/build.yml?branch=main&label=build&style=flat-square)](https://github.com/gammarers-aws-cdk-constructs/codepipeline-event-notifier/actions/workflows/build.yml)
+[![npm version](https://img.shields.io/npm/v/codepipeline-pipeline-execution-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-pipeline-execution-event-notifier)
+[![license](https://img.shields.io/npm/l/codepipeline-pipeline-execution-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-pipeline-execution-event-notifier)
+[![Node.js](https://img.shields.io/node/v/codepipeline-pipeline-execution-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-pipeline-execution-event-notifier)
+[![build](https://img.shields.io/github/actions/workflow/status/gammarers-aws-cdk-constructs/codepipeline-pipeline-execution-event-notifier/build.yml?label=build&style=flat-square)](https://github.com/gammarers-aws-cdk-constructs/codepipeline-pipeline-execution-event-notifier/actions/workflows/build.yml)
 
-[![View on Construct Hub](https://constructs.dev/badge?package=codepipeline-event-notifier)](https://constructs.dev/packages/codepipeline-event-notifier)
+[![View on Construct Hub](https://constructs.dev/badge?package=codepipeline-pipeline-execution-event-notifier)](https://constructs.dev/packages/codepipeline-pipeline-execution-event-notifier)
 
 CDK construct that listens to **AWS CodePipeline execution STARTED** events via EventBridge, invokes a **durable** Lambda notifier, and publishes execution state changes to an SNS topic.
 
@@ -31,35 +31,35 @@ CDK construct that listens to **AWS CodePipeline execution STARTED** events via 
 ### npm
 
 ```bash
-npm install codepipeline-event-notifier
+npm install codepipeline-pipeline-execution-event-notifier
 ```
 
 ### yarn
 
 ```bash
-yarn add codepipeline-event-notifier
+yarn add codepipeline-pipeline-execution-event-notifier
 ```
 
 ### pnpm
 
 ```bash
-pnpm add codepipeline-event-notifier
+pnpm add codepipeline-pipeline-execution-event-notifier
 ```
 
 ## Usage
 
-Instantiate `CodePipelineEventNotifier` in your CDK stack:
+Instantiate `CodePipelinePipelineExecutionEventNotifier` in your CDK stack:
 
 ```ts
 import { Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { CodePipelineEventNotifier } from 'codepipeline-event-notifier';
+import { CodePipelinePipelineExecutionEventNotifier } from 'codepipeline-pipeline-execution-event-notifier';
 
 export class MyStack extends Stack {
   constructor(scope: Construct, id: string) {
     super(scope, id);
 
-    const notifier = new CodePipelineEventNotifier(this, 'CodePipelineEventNotifier', {
+    const notifier = new CodePipelinePipelineExecutionEventNotifier(this, 'CodePipelinePipelineExecutionEventNotifier', {
       targetPipeline: {
         tags: [
           {
@@ -81,7 +81,7 @@ export class MyStack extends Stack {
 ```ts
 import { Duration, Stack, aws_sns as sns } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { CodePipelineEventNotifier } from 'codepipeline-event-notifier';
+import { CodePipelinePipelineExecutionEventNotifier } from 'codepipeline-pipeline-execution-event-notifier';
 
 export class MyStack extends Stack {
   constructor(scope: Construct, id: string) {
@@ -89,7 +89,7 @@ export class MyStack extends Stack {
 
     const topic = sns.Topic.fromTopicArn(this, 'ExistingTopic', 'arn:aws:sns:...');
 
-    new CodePipelineEventNotifier(this, 'CodePipelineEventNotifier', {
+    new CodePipelinePipelineExecutionEventNotifier(this, 'CodePipelinePipelineExecutionEventNotifier', {
       topic,
       waitInterval: Duration.seconds(30),
       maxWaitDuration: Duration.minutes(10),

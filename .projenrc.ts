@@ -4,8 +4,8 @@ const project = new ProjenCdkConstructLibrary({
   releaseToNpm: true,
   npmTrustedPublishing: true,
   cdkVersion: '2.232.0',
-  name: 'codepipeline-event-notifier',
-  repositoryUrl: 'https://github.com/gammarers-aws-cdk-constructs/codepipeline-event-notifier.git',
+  name: 'codepipeline-pipeline-execution-event-notifier',
+  repositoryUrl: 'https://github.com/gammarers-aws-cdk-constructs/codepipeline-pipeline-execution-event-notifier.git',
   description: 'CDK construct that listens to AWS CodePipeline execution STARTED events via EventBridge, invokes a durable Lambda notifier, and publishes execution state changes to an SNS topic.',
   devDeps: [
     '@gammarers/projen-projects@^0.5.10',

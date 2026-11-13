@@ -1,6 +1,6 @@
 export {
-  CodePipelineEventNotifier,
-  CodePipelineEventNotifierProps,
+  CodePipelinePipelineExecutionEventNotifier,
+  CodePipelinePipelineExecutionEventNotifierProps,
   TargetPipeline,
   TargetPipelineTag,
-} from './codepipeline-event-notifier';
+} from './codepipeline-pipeline-execution-event-notifier';

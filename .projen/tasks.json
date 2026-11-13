@@ -166,7 +166,7 @@
         {
           "execArgs": [
             "jsii-diff",
-            "npm:codepipeline-event-notifier",
+            "npm:codepipeline-pipeline-execution-event-notifier",
             "-k",
             "--ignore-file",
             ".compatignore"

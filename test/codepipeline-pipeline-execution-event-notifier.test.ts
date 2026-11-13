@@ -1,6 +1,6 @@
 import { App, Duration, Stack, aws_sns as sns } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { CodePipelineEventNotifier, type CodePipelineEventNotifierProps } from '../src';
+import { CodePipelinePipelineExecutionEventNotifier, type CodePipelinePipelineExecutionEventNotifierProps } from '../src';
 
 const defaultTargetPipeline = {
   tags: [
@@ -62,10 +62,10 @@ const expectDurableNotifierWiring = (template: Template): void => {
   });
 };
 
-describe('CodePipelineEventNotifier', () => {
+describe('CodePipelinePipelineExecutionEventNotifier', () => {
   it('uses defaults when optional props are omitted', () => {
     const stack = new Stack(new App(), 'Defaults');
-    new CodePipelineEventNotifier(stack, 'Notifier', {
+    new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: defaultTargetPipeline,
     });
 
@@ -128,7 +128,7 @@ describe('CodePipelineEventNotifier', () => {
     const stack = new Stack(new App(), 'Custom');
     const topic = new sns.Topic(stack, 'ExistingTopic');
 
-    new CodePipelineEventNotifier(stack, 'Notifier', {
+    new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       topic,
       waitInterval: Duration.seconds(30),
       maxWaitDuration: Duration.minutes(10),
@@ -190,7 +190,7 @@ describe('CodePipelineEventNotifier', () => {
       'arn:aws:codepipeline:us-east-1:123456789012:other-pipeline',
     ];
 
-    new CodePipelineEventNotifier(stack, 'Notifier', {
+    new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: {
         tags: defaultTargetPipeline.tags,
         arns: pipelineArns,
@@ -241,7 +241,7 @@ describe('CodePipelineEventNotifier', () => {
   ])('rejects $name', ({ targetPipeline }) => {
     const stack = new Stack(new App(), 'Invalid');
 
-    expect(() => new CodePipelineEventNotifier(stack, 'Notifier', {
+    expect(() => new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline,
     })).toThrow('targetPipeline.tags must be a non-empty array of { key, values }');
   });
@@ -249,7 +249,7 @@ describe('CodePipelineEventNotifier', () => {
   it('rejects duplicate tag keys', () => {
     const stack = new Stack(new App(), 'Duplicate');
 
-    expect(() => new CodePipelineEventNotifier(stack, 'Notifier', {
+    expect(() => new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: {
         tags: [
           { key: 'Notify', values: ['true'] },
@@ -271,7 +271,7 @@ describe('CodePipelineEventNotifier', () => {
   ])('rejects $name', ({ arns }) => {
     const stack = new Stack(new App(), 'InvalidArns');
 
-    expect(() => new CodePipelineEventNotifier(stack, 'Notifier', {
+    expect(() => new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: {
         tags: defaultTargetPipeline.tags,
         arns,
@@ -283,7 +283,7 @@ describe('CodePipelineEventNotifier', () => {
     const stack = new Stack(new App(), 'DuplicateArns');
     const pipelineArn = 'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline';
 
-    expect(() => new CodePipelineEventNotifier(stack, 'Notifier', {
+    expect(() => new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: {
         tags: defaultTargetPipeline.tags,
         arns: [pipelineArn, pipelineArn],
@@ -293,7 +293,7 @@ describe('CodePipelineEventNotifier', () => {
 
   it('trims tag keys and values before storing them', () => {
     const stack = new Stack(new App(), 'Trim');
-    new CodePipelineEventNotifier(stack, 'Notifier', {
+    new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: {
         tags: [
           { key: ' Notify ', values: [' true '] },
@@ -323,13 +323,13 @@ describe('CodePipelineEventNotifier', () => {
     it.each([
       {
         name: 'defaults',
-        buildProps: (): CodePipelineEventNotifierProps => ({
+        buildProps: (): CodePipelinePipelineExecutionEventNotifierProps => ({
           targetPipeline: defaultTargetPipeline,
         }),
       },
       {
         name: 'custom-timing',
-        buildProps: (): CodePipelineEventNotifierProps => ({
+        buildProps: (): CodePipelinePipelineExecutionEventNotifierProps => ({
           targetPipeline: defaultTargetPipeline,
           waitInterval: Duration.seconds(30),
           maxWaitDuration: Duration.minutes(10),
@@ -339,7 +339,7 @@ describe('CodePipelineEventNotifier', () => {
       },
       {
         name: 'existing-topic-and-pattern',
-        buildProps: (stack: Stack): CodePipelineEventNotifierProps => ({
+        buildProps: (stack: Stack): CodePipelinePipelineExecutionEventNotifierProps => ({
           topic: new sns.Topic(stack, 'ExistingTopic'),
           targetPipeline: {
             tags: [
@@ -358,7 +358,7 @@ describe('CodePipelineEventNotifier', () => {
       },
       {
         name: 'arns-allowlist',
-        buildProps: (): CodePipelineEventNotifierProps => ({
+        buildProps: (): CodePipelinePipelineExecutionEventNotifierProps => ({
           targetPipeline: {
             tags: defaultTargetPipeline.tags,
             arns: [
@@ -369,7 +369,7 @@ describe('CodePipelineEventNotifier', () => {
       },
     ])('matches snapshot for $name', ({ name, buildProps }) => {
       const stack = new Stack(new App(), `Snap-${name}`);
-      new CodePipelineEventNotifier(stack, 'Notifier', buildProps(stack));
+      new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', buildProps(stack));
 
       expect(Template.fromStack(stack).toJSON()).toMatchSnapshot(name);
     });

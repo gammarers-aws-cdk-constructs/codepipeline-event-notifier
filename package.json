@@ -1,9 +1,9 @@
 {
-  "name": "codepipeline-event-notifier",
+  "name": "codepipeline-pipeline-execution-event-notifier",
   "description": "CDK construct that listens to AWS CodePipeline execution STARTED events via EventBridge, invokes a durable Lambda notifier, and publishes execution state changes to an SNS topic.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gammarers-aws-cdk-constructs/codepipeline-event-notifier.git"
+    "url": "https://github.com/gammarers-aws-cdk-constructs/codepipeline-pipeline-execution-event-notifier.git"
   },
   "scripts": {
     "build": "projen build",
