@@ -31,7 +31,7 @@ const PIPELINE_ARN = 'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline';
 const PIPELINE_NAME = 'my-pipeline';
 const EXECUTION_ID = 'exec-1';
 const TARGET_PIPELINE_TAGS = JSON.stringify([
-  { key: 'Notify', values: ['true'] },
+  { tagKey: 'Notify', tagValues: ['true'] },
 ]);
 
 const makeEvent = (

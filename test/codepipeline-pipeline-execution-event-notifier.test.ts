@@ -7,8 +7,8 @@ import { expectDurableNotifierWiring } from './expect-durable-notifier-wiring';
 const defaultTargetPipeline = {
   tags: [
     {
-      key: 'Notify',
-      values: ['true'],
+      tagKey: 'Notify',
+      tagValues: ['true'],
     },
   ],
 };
@@ -88,8 +88,8 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
       targetPipeline: {
         tags: [
           {
-            key: 'Team',
-            values: ['platform', 'infra'],
+            tagKey: 'Team',
+            tagValues: ['platform', 'infra'],
           },
         ],
       },
@@ -117,7 +117,7 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
           WAIT_INTERVAL_SECONDS: '30',
           MAX_WAIT_MINUTES: '10',
           TARGET_PIPELINE_TAGS: JSON.stringify([
-            { key: 'Team', values: ['platform', 'infra'] },
+            { tagKey: 'Team', tagValues: ['platform', 'infra'] },
           ]),
         }),
       },
@@ -172,29 +172,36 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
     });
   });
 
-  it.each([
-    {
-      name: 'empty tags',
-      targetPipeline: { tags: [] },
-    },
-    {
-      name: 'empty key',
-      targetPipeline: { tags: [{ key: '', values: ['true'] }] },
-    },
-    {
-      name: 'empty values',
-      targetPipeline: { tags: [{ key: 'Notify', values: [] }] },
-    },
-    {
-      name: 'empty value string',
-      targetPipeline: { tags: [{ key: 'Notify', values: [''] }] },
-    },
-  ])('rejects $name', ({ targetPipeline }) => {
+  it('rejects an empty tag list', () => {
     const stack = new Stack(new App(), 'Invalid');
 
     expect(() => new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
-      targetPipeline,
-    })).toThrow('targetPipeline.tags must be a non-empty array of { key, values }');
+      targetPipeline: { tags: [] },
+    })).toThrow('targetPipeline.tags must contain at least one value.');
+  });
+
+  it.each([
+    {
+      name: 'blank tagKey',
+      tags: [{ tagKey: '', tagValues: ['true'] }],
+      message: 'targetPipeline.tags[0].tagKey must be a non-blank string.',
+    },
+    {
+      name: 'empty tagValues',
+      tags: [{ tagKey: 'Notify', tagValues: [] }],
+      message: 'targetPipeline.tags[0].tagValues must contain at least one value.',
+    },
+    {
+      name: 'blank tag value',
+      tags: [{ tagKey: 'Notify', tagValues: [''] }],
+      message: 'targetPipeline.tags[0].tagValues must not contain blank strings.',
+    },
+  ])('rejects $name', ({ tags, message }) => {
+    const stack = new Stack(new App(), 'Invalid');
+
+    expect(() => new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
+      targetPipeline: { tags },
+    })).toThrow(message);
   });
 
   it('rejects duplicate tag keys', () => {
@@ -203,11 +210,11 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
     expect(() => new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: {
         tags: [
-          { key: 'Notify', values: ['true'] },
-          { key: 'Notify', values: ['false'] },
+          { tagKey: 'Notify', tagValues: ['true'] },
+          { tagKey: 'Notify', tagValues: ['false'] },
         ],
       },
-    })).toThrow('targetPipeline.tags contains duplicate key: Notify');
+    })).toThrow('targetPipeline.tags contains duplicate tagKey: Notify');
   });
 
   it.each([
@@ -242,13 +249,11 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
     })).toThrow(`targetPipeline.arns contains duplicate ARN: ${pipelineArn}`);
   });
 
-  it('trims tag keys and values before storing them', () => {
+  it('trims pipeline ARNs before storing them', () => {
     const stack = new Stack(new App(), 'Trim');
     new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: {
-        tags: [
-          { key: ' Notify ', values: [' true '] },
-        ],
+        tags: defaultTargetPipeline.tags,
         arns: [
           ' arn:aws:codepipeline:us-east-1:123456789012:my-pipeline ',
         ],
@@ -259,9 +264,7 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
     template.hasResourceProperties('AWS::Lambda::Function', {
       Environment: {
         Variables: Match.objectLike({
-          TARGET_PIPELINE_TAGS: JSON.stringify([
-            { key: 'Notify', values: ['true'] },
-          ]),
+          TARGET_PIPELINE_TAGS: JSON.stringify(defaultTargetPipeline.tags),
           TARGET_PIPELINE_ARNS: JSON.stringify([
             'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline',
           ]),
@@ -363,7 +366,7 @@ describe('CodePipelinePipelineExecutionEventNotifier', () => {
           topic: new Topic(stack, 'ExistingTopic'),
           targetPipeline: {
             tags: [
-              { key: 'Team', values: ['platform', 'infra'] },
+              { tagKey: 'Team', tagValues: ['platform', 'infra'] },
             ],
           },
           eventPattern: {

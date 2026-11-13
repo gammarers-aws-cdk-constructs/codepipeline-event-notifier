@@ -35,7 +35,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
               "Ref": "NotifierPipelineEventTopic1EB9FEF0",
             },
             "TARGET_PIPELINE_ARNS": "["arn:aws:codepipeline:us-east-1:123456789012:my-pipeline"]",
-            "TARGET_PIPELINE_TAGS": "[{"key":"Notify","values":["true"]}]",
+            "TARGET_PIPELINE_TAGS": "[{"tagKey":"Notify","tagValues":["true"]}]",
             "WAIT_INTERVAL_SECONDS": "10",
           },
         },
@@ -63,7 +63,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "NotifierNotifierFunctionCurrentVersion5306DED10000c9b96b9e00d7fc9e55a783d34c2b",
+            "NotifierNotifierFunctionCurrentVersion5306DED1298ed636f8d229a2093af1dadbe0cb46",
             "Version",
           ],
         },
@@ -71,7 +71,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "NotifierNotifierFunctionCurrentVersion5306DED10000c9b96b9e00d7fc9e55a783d34c2b": {
+    "NotifierNotifierFunctionCurrentVersion5306DED1298ed636f8d229a2093af1dadbe0cb46": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -263,7 +263,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
             "SNS_TOPIC_ARN": {
               "Ref": "NotifierPipelineEventTopic1EB9FEF0",
             },
-            "TARGET_PIPELINE_TAGS": "[{"key":"Notify","values":["true"]}]",
+            "TARGET_PIPELINE_TAGS": "[{"tagKey":"Notify","tagValues":["true"]}]",
             "WAIT_INTERVAL_SECONDS": "30",
           },
         },
@@ -291,7 +291,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "NotifierNotifierFunctionCurrentVersion5306DED1e58cd384549540a98829d40898401b16",
+            "NotifierNotifierFunctionCurrentVersion5306DED111b037ec2f1230e772b667665efb2002",
             "Version",
           ],
         },
@@ -299,7 +299,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "NotifierNotifierFunctionCurrentVersion5306DED1e58cd384549540a98829d40898401b16": {
+    "NotifierNotifierFunctionCurrentVersion5306DED111b037ec2f1230e772b667665efb2002": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -510,7 +510,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
             "SNS_TOPIC_ARN": {
               "Ref": "NotifierPipelineEventTopic1EB9FEF0",
             },
-            "TARGET_PIPELINE_TAGS": "[{"key":"Notify","values":["true"]}]",
+            "TARGET_PIPELINE_TAGS": "[{"tagKey":"Notify","tagValues":["true"]}]",
             "WAIT_INTERVAL_SECONDS": "10",
           },
         },
@@ -538,7 +538,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "NotifierNotifierFunctionCurrentVersion5306DED1188b290c161c4988eca324afff0939d9",
+            "NotifierNotifierFunctionCurrentVersion5306DED185fd2da1700ac645d5f44554cf8b81fa",
             "Version",
           ],
         },
@@ -546,7 +546,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "NotifierNotifierFunctionCurrentVersion5306DED1188b290c161c4988eca324afff0939d9": {
+    "NotifierNotifierFunctionCurrentVersion5306DED185fd2da1700ac645d5f44554cf8b81fa": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -760,7 +760,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
             "SNS_TOPIC_ARN": {
               "Ref": "ExistingTopicAA6FD6BC",
             },
-            "TARGET_PIPELINE_TAGS": "[{"key":"Team","values":["platform","infra"]}]",
+            "TARGET_PIPELINE_TAGS": "[{"tagKey":"Team","tagValues":["platform","infra"]}]",
             "WAIT_INTERVAL_SECONDS": "10",
           },
         },
@@ -788,7 +788,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "NotifierNotifierFunctionCurrentVersion5306DED1477aee21753ddf1e8f31fbeb5ed3e81c",
+            "NotifierNotifierFunctionCurrentVersion5306DED1d6c9433021a46d7b9aecb05ab60e07ef",
             "Version",
           ],
         },
@@ -796,7 +796,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "NotifierNotifierFunctionCurrentVersion5306DED1477aee21753ddf1e8f31fbeb5ed3e81c": {
+    "NotifierNotifierFunctionCurrentVersion5306DED1d6c9433021a46d7b9aecb05ab60e07ef": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -1097,7 +1097,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
             "SNS_TOPIC_ARN": {
               "Ref": "NotifierPipelineEventTopic1EB9FEF0",
             },
-            "TARGET_PIPELINE_TAGS": "[{"key":"Notify","values":["true"]}]",
+            "TARGET_PIPELINE_TAGS": "[{"tagKey":"Notify","tagValues":["true"]}]",
             "WAIT_INTERVAL_SECONDS": "10",
           },
         },
@@ -1125,7 +1125,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "NotifierNotifierFunctionCurrentVersion5306DED1188b290c161c4988eca324afff0939d9",
+            "NotifierNotifierFunctionCurrentVersion5306DED185fd2da1700ac645d5f44554cf8b81fa",
             "Version",
           ],
         },
@@ -1133,7 +1133,7 @@ exports[`CodePipelinePipelineExecutionEventNotifier template snapshots for major
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "NotifierNotifierFunctionCurrentVersion5306DED1188b290c161c4988eca324afff0939d9": {
+    "NotifierNotifierFunctionCurrentVersion5306DED185fd2da1700ac645d5f44554cf8b81fa": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },

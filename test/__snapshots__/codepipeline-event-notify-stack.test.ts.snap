@@ -17,7 +17,7 @@ exports[`CodePipelineEventNotifyStack deploys the notifier with default durable 
         },
         "FunctionVersion": {
           "Fn::GetAtt": [
-            "CodePipelinePipelineExecutionEventNotifierNotifierFunctionCurrentVersionD51FF022b49a182a84d59a11a76ed1e6c0f3b140",
+            "CodePipelinePipelineExecutionEventNotifierNotifierFunctionCurrentVersionD51FF02269d196bff7002c06e085bedec0c52835",
             "Version",
           ],
         },
@@ -25,7 +25,7 @@ exports[`CodePipelineEventNotifyStack deploys the notifier with default durable 
       },
       "Type": "AWS::Lambda::Alias",
     },
-    "CodePipelinePipelineExecutionEventNotifierNotifierFunctionCurrentVersionD51FF022b49a182a84d59a11a76ed1e6c0f3b140": {
+    "CodePipelinePipelineExecutionEventNotifierNotifierFunctionCurrentVersionD51FF02269d196bff7002c06e085bedec0c52835": {
       "Metadata": {
         "aws:cdk:do-not-refactor": true,
       },
@@ -60,7 +60,7 @@ exports[`CodePipelineEventNotifyStack deploys the notifier with default durable 
             "SNS_TOPIC_ARN": {
               "Ref": "CodePipelinePipelineExecutionEventNotifierPipelineEventTopic8590489F",
             },
-            "TARGET_PIPELINE_TAGS": "[{"key":"Notify","values":["true"]}]",
+            "TARGET_PIPELINE_TAGS": "[{"tagKey":"Notify","tagValues":["true"]}]",
             "WAIT_INTERVAL_SECONDS": "10",
           },
         },

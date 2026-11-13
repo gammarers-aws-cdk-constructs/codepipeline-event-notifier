@@ -4,6 +4,10 @@ import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Topic, type ITopic } from 'aws-cdk-lib/aws-sns';
+import {
+  ConstructResourceCriteria,
+  type ConstructResourceTagCriteria,
+} from 'construct-resource-criteria';
 import { Construct } from 'constructs';
 import {
   createLambdaFailureDetector,
@@ -61,29 +65,14 @@ const NOTIFIER_LOG_FAILURE_FILTERS: LogFailureFilter[] = [
 ];
 
 /**
- * Tag filter for selecting CodePipeline pipelines.
- * Keys across entries are AND; values within an entry are OR.
- */
-export interface TargetPipelineTag {
-  /**
-   * Tag key that must be present on the pipeline.
-   */
-  readonly key: string;
-
-  /**
-   * Accepted values for {@link key}.
-   */
-  readonly values: string[];
-}
-
-/**
  * Selection criteria for pipelines that should trigger notifications.
  */
 export interface TargetPipeline {
   /**
-   * Tag filters applied to CodePipeline resources.
+   * Tag criteria applied to CodePipeline resources.
+   * Entries are AND; {@link ConstructResourceTagCriteria.tagValues} within an entry are OR.
    */
-  readonly tags: TargetPipelineTag[];
+  readonly tags: ConstructResourceTagCriteria[];
 
   /**
    * Pipeline ARNs used as IAM resources for `GetPipelineExecution` and `ListTagsForResource`.
@@ -166,43 +155,30 @@ export interface CodePipelinePipelineExecutionEventNotifierProps {
 }
 
 /**
- * Validates and normalizes {@link TargetPipeline} tag filters.
+ * Validates {@link TargetPipeline} tag criteria.
  *
- * @param targetPipeline pipeline selection from construct props
- * @returns normalized tag filters
+ * @param tags tag criteria from construct props
+ * @returns a copy of the validated criteria
  */
-const resolveTargetPipelineTags = (targetPipeline: TargetPipeline): TargetPipelineTag[] => {
-  if (targetPipeline.tags.length === 0) {
-    throw new Error('targetPipeline.tags must be a non-empty array of { key, values }');
+const resolveTargetPipelineTags = (tags: readonly ConstructResourceTagCriteria[]): ConstructResourceTagCriteria[] => {
+  if (tags.length === 0) {
+    throw new Error('targetPipeline.tags must contain at least one value.');
   }
 
   const seenKeys = new Set<string>();
-  const normalized: TargetPipelineTag[] = [];
+  const normalized: ConstructResourceTagCriteria[] = [];
 
-  for (const tag of targetPipeline.tags) {
-    const key = tag.key.trim();
-    if (!key) {
-      throw new Error('targetPipeline.tags must be a non-empty array of { key, values }');
+  for (const [index, criteria] of tags.entries()) {
+    const propPath = `targetPipeline.tags[${index}]`;
+    ConstructResourceCriteria.assertTagCriteria(criteria, { propPath });
+    if (seenKeys.has(criteria.tagKey)) {
+      throw new Error(`targetPipeline.tags contains duplicate tagKey: ${criteria.tagKey}`);
     }
-    if (seenKeys.has(key)) {
-      throw new Error(`targetPipeline.tags contains duplicate key: ${key}`);
-    }
-    seenKeys.add(key);
-
-    if (tag.values.length === 0) {
-      throw new Error('targetPipeline.tags must be a non-empty array of { key, values }');
-    }
-
-    const values: string[] = [];
-    for (const rawValue of tag.values) {
-      const value = rawValue.trim();
-      if (!value) {
-        throw new Error('targetPipeline.tags must be a non-empty array of { key, values }');
-      }
-      values.push(value);
-    }
-
-    normalized.push({ key, values });
+    seenKeys.add(criteria.tagKey);
+    normalized.push({
+      tagKey: criteria.tagKey,
+      tagValues: [...criteria.tagValues],
+    });
   }
 
   return normalized;
@@ -258,7 +234,7 @@ export class CodePipelinePipelineExecutionEventNotifier extends Construct {
   constructor(scope: Construct, id: string, props: CodePipelinePipelineExecutionEventNotifierProps) {
     super(scope, id);
 
-    const targetPipelineTags = resolveTargetPipelineTags(props.targetPipeline);
+    const targetPipelineTags = resolveTargetPipelineTags(props.targetPipeline.tags);
     const targetPipelineArns = resolveTargetPipelineArns(props.targetPipeline.arns);
     const pipelineIamResources = targetPipelineArns ?? [
       Stack.of(this).formatArn({

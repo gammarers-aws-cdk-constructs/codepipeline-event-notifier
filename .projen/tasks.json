@@ -458,6 +458,7 @@
             "ts-node",
             "typescript",
             "aws-cdk-lib",
+            "construct-resource-criteria",
             "constructs",
             "lambda-failure-detector"
           ]

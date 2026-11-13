@@ -12,7 +12,7 @@ CDK construct that listens to **AWS CodePipeline execution STARTED** events via 
 ## Features
 
 - **EventBridge integration**: triggers on `CodePipeline Pipeline Execution State Change` with `state=STARTED` (customizable via `eventPattern`)
-- **Tag-based pipeline selection**: required `targetPipeline.tags` filters which pipelines are notified (`ListTagsForResource`; keys are AND, values are OR)
+- **Tag-based pipeline selection**: required `targetPipeline.tags` (`ConstructResourceTagCriteria`) filters which pipelines are notified (`ListTagsForResource`; `tagKey` entries are AND, `tagValues` are OR)
 - **Least-privilege IAM**: CodePipeline API access is scoped to this account and region, or to `targetPipeline.arns` when set
 - **SNS notifications**: publishes execution status transitions as JSON messages (`phase`: `eventbridge` / `wait`)
 - **Durable execution waiting**: uses Lambda durable functions (`@aws/durable-execution-sdk-js`) so waits suspend between `GetPipelineExecution` checks instead of holding a long synchronous invocation
@@ -22,7 +22,7 @@ CDK construct that listens to **AWS CodePipeline execution STARTED** events via 
 ## How it works
 
 1. EventBridge matches a CodePipeline execution state-change event (default: `state=STARTED`) and invokes the notifier Lambda **alias** (`live`).
-2. The durable Lambda resolves the pipeline ARN, then keeps the event only when `targetPipeline.tags` match (`ListTagsForResource`; keys are AND, values are OR) and, if set, `targetPipeline.arns` includes the pipeline.
+2. The durable Lambda resolves the pipeline ARN, then keeps the event only when `targetPipeline.tags` match (`ListTagsForResource`; `tagKey` entries are AND, `tagValues` are OR) and, if set, `targetPipeline.arns` includes the pipeline.
 3. It publishes an SNS message with `phase: eventbridge`, then uses durable steps and waits around `GetPipelineExecution` until a terminal status (`SUCCEEDED` / `FAILED` / `STOPPED` / `SUPERSEDED`) or `maxWaitDuration`.
 4. Each status change (and timeout) is published with `phase: wait`. Subscribe to `notifier.topic`; this construct does not add subscriptions.
 
@@ -69,8 +69,8 @@ export class MyStack extends Stack {
       targetPipeline: {
         tags: [
           {
-            key: 'Notify',
-            values: ['true'],
+            tagKey: 'Notify',
+            tagValues: ['true'],
           },
         ],
       },
@@ -104,8 +104,8 @@ export class MyStack extends Stack {
       targetPipeline: {
         tags: [
           {
-            key: 'Team',
-            values: ['platform', 'infra'],
+            tagKey: 'Team',
+            tagValues: ['platform', 'infra'],
           },
         ],
         arns: [
@@ -128,7 +128,7 @@ export class MyStack extends Stack {
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
-| `targetPipeline` | `TargetPipeline` | *(required)* | Tag filters (`tags`) for pipelines that should notify. Optional `arns` restrict IAM and skip other pipelines. Default IAM is this account and region |
+| `targetPipeline` | `TargetPipeline` | *(required)* | `tags` is `ConstructResourceTagCriteria[]` (`tagKey`, `tagValues`) for pipelines that should notify. Optional `arns` restrict IAM and skip other pipelines. Default IAM is this account and region |
 | `topic` | `sns.ITopic` | new topic | SNS topic to publish notifications to (also exposed as `notifier.topic`) |
 | `waitInterval` | `Duration` | `10 seconds` | Durable wait interval between `GetPipelineExecution` checks |
 | `maxWaitDuration` | `Duration` | `14 minutes` | Maximum wait duration and durable `executionTimeout` |
@@ -140,7 +140,7 @@ export class MyStack extends Stack {
 The notifier Lambda uses these environment variables (set by the construct from props):
 
 - `SNS_TOPIC_ARN` (**required**): SNS topic ARN to publish notifications to
-- `TARGET_PIPELINE_TAGS` (**required**): JSON array of `{ key, values }` tag filters
+- `TARGET_PIPELINE_TAGS` (**required**): JSON array of `{ tagKey, tagValues }` criteria
 - `TARGET_PIPELINE_ARNS` (optional): JSON array of pipeline ARNs used as an allowlist when `targetPipeline.arns` is set
 - `WAIT_INTERVAL_SECONDS` (default: `10`): wait interval in seconds
 - `MAX_WAIT_MINUTES` (default: `14`): maximum wait duration in minutes
@@ -154,6 +154,7 @@ See the [API reference](./API.md).
 - Node.js `>= 20`
 - AWS CDK `v2` (`aws-cdk-lib` `^2.232.0`)
 - `constructs` `^10.5.1`
+- `construct-resource-criteria` `^0.1.7`
 - `lambda-failure-detector` `^0.2.3`
 
 ## License

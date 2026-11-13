@@ -1,26 +1,27 @@
 /**
- * Tag filter used to decide whether a CodePipeline should be notified.
+ * Tag criteria used to decide whether a CodePipeline should be notified.
+ * Same fields as `ConstructResourceTagCriteria`.
  */
 export interface PipelineTagFilter {
   /**
    * Tag key that must be present on the pipeline.
    */
-  readonly key: string;
+  readonly tagKey: string;
 
   /**
-   * Accepted values for {@link key}. Matching is OR within this list.
+   * Accepted values for {@link tagKey}. Matching is OR within this list.
    */
-  readonly values: readonly string[];
+  readonly tagValues: readonly string[];
 }
 
 const isNonEmptyString = (value: unknown): value is string =>
   typeof value === 'string' && value.trim().length > 0;
 
 /**
- * Returns whether `value` is a non-empty list of `{ key, values }` tag filters.
+ * Returns whether `value` is a non-empty list of `{ tagKey, tagValues }` criteria.
  *
  * @param value unknown JSON value
- * @returns true when the value can be used as tag filters
+ * @returns true when the value can be used as tag criteria
  */
 export const isPipelineTagFilterList = (value: unknown): value is PipelineTagFilter[] => {
   if (!Array.isArray(value) || value.length === 0) {
@@ -28,7 +29,7 @@ export const isPipelineTagFilterList = (value: unknown): value is PipelineTagFil
   }
 
   for (const item of value) {
-    if (!isPipelineTagFilter(item)) {
+    if (isPipelineTagFilter(item)) {
       return false;
     }
   }
@@ -37,26 +38,26 @@ export const isPipelineTagFilterList = (value: unknown): value is PipelineTagFil
 };
 
 /**
- * Returns whether `value` is a single tag filter with a non-empty key and values.
+ * Returns whether `value` is a single tag criteria with a non-empty key and values.
  *
  * @param value unknown JSON value
- * @returns true when the value is a tag filter
+ * @returns true when the value is tag criteria
  */
 export const isPipelineTagFilter = (value: unknown): value is PipelineTagFilter => {
   if (typeof value !== 'object' || value === null) {
     return false;
   }
-  if (!('key' in value) || !('values' in value)) {
+  if (!('tagKey' in value) || !('tagValues' in value)) {
     return false;
   }
-  if (!isNonEmptyString(value.key)) {
+  if (!isNonEmptyString(value.tagKey)) {
     return false;
   }
-  if (!Array.isArray(value.values) || value.values.length === 0) {
+  if (!Array.isArray(value.tagValues) || value.tagValues.length === 0) {
     return false;
   }
 
-  for (const tagValue of value.values) {
+  for (const tagValue of value.tagValues) {
     if (!isNonEmptyString(tagValue)) {
       return false;
     }
@@ -81,33 +82,32 @@ export const parseTargetPipelineTags = (raw: string): PipelineTagFilter[] => {
   }
 
   if (!isPipelineTagFilterList(parsed)) {
-    throw new Error('TARGET_PIPELINE_TAGS must be a non-empty array of { key, values }');
+    throw new Error('TARGET_PIPELINE_TAGS must be a non-empty array of { tagKey, tagValues }');
   }
 
   return normalizeTagFilters(parsed);
 };
 
 /**
- * Trims keys/values and rejects duplicate keys.
+ * Copies criteria and rejects duplicate tag keys.
  *
- * @param filters tag filters to normalize
- * @returns normalized filters
- * @throws when a key is duplicated
+ * @param filters tag criteria to normalize
+ * @returns normalized criteria
+ * @throws when a tag key is duplicated
  */
 export const normalizeTagFilters = (filters: readonly PipelineTagFilter[]): PipelineTagFilter[] => {
   const seenKeys = new Set<string>();
   const normalized: PipelineTagFilter[] = [];
 
   for (const filter of filters) {
-    const key = filter.key.trim();
-    if (seenKeys.has(key)) {
-      throw new Error(`Tag filter list contains duplicate key: ${key}`);
+    if (seenKeys.has(filter.tagKey)) {
+      throw new Error(`Tag filter list contains duplicate tagKey: ${filter.tagKey}`);
     }
-    seenKeys.add(key);
+    seenKeys.add(filter.tagKey);
 
     normalized.push({
-      key,
-      values: filter.values.map((value) => value.trim()),
+      tagKey: filter.tagKey,
+      tagValues: [...filter.tagValues],
     });
   }
 
@@ -151,11 +151,11 @@ export const matchesTargetPipelineTags = (
   filters: readonly PipelineTagFilter[],
 ): boolean => {
   for (const filter of filters) {
-    const actual = pipelineTags[filter.key];
+    const actual = pipelineTags[filter.tagKey];
     if (actual === undefined) {
       return false;
     }
-    if (!filter.values.includes(actual)) {
+    if (!filter.tagValues.includes(actual)) {
       return false;
     }
   }

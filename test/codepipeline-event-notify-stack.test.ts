@@ -6,8 +6,8 @@ import { CodePipelineEventNotifyStack } from '../src/codepipeline-event-notify-s
 const targetPipeline = {
   tags: [
     {
-      key: 'Notify',
-      values: ['true'],
+      tagKey: 'Notify',
+      tagValues: ['true'],
     },
   ],
 };

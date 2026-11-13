@@ -366,7 +366,7 @@ const targetPipeline: TargetPipeline = { ... }
 
 | **Name** | **Type** | **Description** |
 | --- | --- | --- |
-| <code><a href="#codepipeline-pipeline-execution-event-notifier.TargetPipeline.property.tags">tags</a></code> | <code><a href="#codepipeline-pipeline-execution-event-notifier.TargetPipelineTag">TargetPipelineTag</a>[]</code> | Tag filters applied to CodePipeline resources. |
+| <code><a href="#codepipeline-pipeline-execution-event-notifier.TargetPipeline.property.tags">tags</a></code> | <code>construct-resource-criteria.ConstructResourceTagCriteria[]</code> | Tag criteria applied to CodePipeline resources. |
 | <code><a href="#codepipeline-pipeline-execution-event-notifier.TargetPipeline.property.arns">arns</a></code> | <code>string[]</code> | Pipeline ARNs used as IAM resources for `GetPipelineExecution` and `ListTagsForResource`. |
 
 ---
@@ -374,12 +374,14 @@ const targetPipeline: TargetPipeline = { ... }
 ##### `tags`<sup>Required</sup> <a name="tags" id="codepipeline-pipeline-execution-event-notifier.TargetPipeline.property.tags"></a>
 
 ```typescript
-public readonly tags: TargetPipelineTag[];
+public readonly tags: ConstructResourceTagCriteria[];
 ```
 
-- *Type:* <a href="#codepipeline-pipeline-execution-event-notifier.TargetPipelineTag">TargetPipelineTag</a>[]
+- *Type:* construct-resource-criteria.ConstructResourceTagCriteria[]
 
-Tag filters applied to CodePipeline resources.
+Tag criteria applied to CodePipeline resources.
+
+Entries are AND; {@link ConstructResourceTagCriteria.tagValues} within an entry are OR.
 
 ---
 
@@ -395,53 +397,6 @@ public readonly arns: string[];
 Pipeline ARNs used as IAM resources for `GetPipelineExecution` and `ListTagsForResource`.
 
 When set, the notifier also ignores STARTED events whose pipeline ARN is not in this list.
-
----
-
-### TargetPipelineTag <a name="TargetPipelineTag" id="codepipeline-pipeline-execution-event-notifier.TargetPipelineTag"></a>
-
-Tag filter for selecting CodePipeline pipelines.
-
-Keys across entries are AND; values within an entry are OR.
-
-#### Initializer <a name="Initializer" id="codepipeline-pipeline-execution-event-notifier.TargetPipelineTag.Initializer"></a>
-
-```typescript
-import { TargetPipelineTag } from 'codepipeline-pipeline-execution-event-notifier'
-
-const targetPipelineTag: TargetPipelineTag = { ... }
-```
-
-#### Properties <a name="Properties" id="Properties"></a>
-
-| **Name** | **Type** | **Description** |
-| --- | --- | --- |
-| <code><a href="#codepipeline-pipeline-execution-event-notifier.TargetPipelineTag.property.key">key</a></code> | <code>string</code> | Tag key that must be present on the pipeline. |
-| <code><a href="#codepipeline-pipeline-execution-event-notifier.TargetPipelineTag.property.values">values</a></code> | <code>string[]</code> | Accepted values for {@link key}. |
-
----
-
-##### `key`<sup>Required</sup> <a name="key" id="codepipeline-pipeline-execution-event-notifier.TargetPipelineTag.property.key"></a>
-
-```typescript
-public readonly key: string;
-```
-
-- *Type:* string
-
-Tag key that must be present on the pipeline.
-
----
-
-##### `values`<sup>Required</sup> <a name="values" id="codepipeline-pipeline-execution-event-notifier.TargetPipelineTag.property.values"></a>
-
-```typescript
-public readonly values: string[];
-```
-
-- *Type:* string[]
-
-Accepted values for {@link key}.
 
 ---
 
