@@ -1,18 +1,18 @@
-# CodePipeline Event Notifier (CDK v2)
+# CodePipeline Pipeline Execution Event Notifier (CDK v2)
 
-[![npm version](https://img.shields.io/npm/v/codepipeline-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-event-notifier)
-[![license](https://img.shields.io/npm/l/codepipeline-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-event-notifier)
-[![Node.js](https://img.shields.io/node/v/codepipeline-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-event-notifier)
-[![build](https://img.shields.io/github/actions/workflow/status/gammarers-aws-cdk-constructs/codepipeline-event-notifier/build.yml?branch=main&label=build&style=flat-square)](https://github.com/gammarers-aws-cdk-constructs/codepipeline-event-notifier/actions/workflows/build.yml)
+[![npm version](https://img.shields.io/npm/v/codepipeline-pipeline-execution-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-pipeline-execution-event-notifier)
+[![license](https://img.shields.io/npm/l/codepipeline-pipeline-execution-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-pipeline-execution-event-notifier)
+[![Node.js](https://img.shields.io/node/v/codepipeline-pipeline-execution-event-notifier?style=flat-square)](https://www.npmjs.com/package/codepipeline-pipeline-execution-event-notifier)
+[![build](https://img.shields.io/github/actions/workflow/status/gammarers-aws-cdk-constructs/codepipeline-pipeline-execution-event-notifier/build.yml?label=build&style=flat-square)](https://github.com/gammarers-aws-cdk-constructs/codepipeline-pipeline-execution-event-notifier/actions/workflows/build.yml)
 
-[![View on Construct Hub](https://constructs.dev/badge?package=codepipeline-event-notifier)](https://constructs.dev/packages/codepipeline-event-notifier)
+[![View on Construct Hub](https://constructs.dev/badge?package=codepipeline-pipeline-execution-event-notifier)](https://constructs.dev/packages/codepipeline-pipeline-execution-event-notifier)
 
 CDK construct that listens to **AWS CodePipeline execution STARTED** events via EventBridge, invokes a **durable** Lambda notifier, and publishes execution state changes to an SNS topic.
 
 ## Features
 
 - **EventBridge integration**: triggers on `CodePipeline Pipeline Execution State Change` with `state=STARTED` (customizable via `eventPattern`)
-- **Tag-based pipeline selection**: required `targetPipeline.tags` filters which pipelines are notified (`ListTagsForResource`; keys are AND, values are OR)
+- **Tag-based pipeline selection**: required `targetPipeline.tags` (`ConstructResourceTagCriteria`) filters which pipelines are notified (`ListTagsForResource`; `tagKey` entries are AND, `tagValues` are OR)
 - **Least-privilege IAM**: CodePipeline API access is scoped to this account and region, or to `targetPipeline.arns` when set
 - **SNS notifications**: publishes execution status transitions as JSON messages (`phase`: `eventbridge` / `wait`)
 - **Durable execution waiting**: uses Lambda durable functions (`@aws/durable-execution-sdk-js`) so waits suspend between `GetPipelineExecution` checks instead of holding a long synchronous invocation
@@ -22,49 +22,55 @@ CDK construct that listens to **AWS CodePipeline execution STARTED** events via 
 ## How it works
 
 1. EventBridge matches a CodePipeline execution state-change event (default: `state=STARTED`) and invokes the notifier Lambda **alias** (`live`).
-2. The durable Lambda resolves the pipeline ARN, then keeps the event only when `targetPipeline.tags` match (`ListTagsForResource`; keys are AND, values are OR) and, if set, `targetPipeline.arns` includes the pipeline.
+2. The durable Lambda resolves the pipeline ARN, then keeps the event only when `targetPipeline.tags` match (`ListTagsForResource`; `tagKey` entries are AND, `tagValues` are OR) and, if set, `targetPipeline.arns` includes the pipeline.
 3. It publishes an SNS message with `phase: eventbridge`, then uses durable steps and waits around `GetPipelineExecution` until a terminal status (`SUCCEEDED` / `FAILED` / `STOPPED` / `SUPERSEDED`) or `maxWaitDuration`.
 4. Each status change (and timeout) is published with `phase: wait`. Subscribe to `notifier.topic`; this construct does not add subscriptions.
+
+CodePipeline and SNS calls retry inside the AWS SDK client (`maxAttempts` 3). One attempt allows 5 seconds to connect and 30 seconds for the response. The handler does not add its own retry loop. The overall wait stops at `maxWaitDuration`.
+
+A wait that ends without a terminal status logs `PipelineExecutionWaitTimedOut` and still completes the invocation, so Lambda `Errors` stays at zero. Set `failureDetection.enabled` to alarm on that log plus Lambda `Errors` and `Throttles`. Pass an existing SNS topic as `failureDetection.alarmTopic` when those alarms should notify. This construct does not create an alarm topic.
+
+Notifier logs go to a dedicated CloudWatch log group kept for 30 days. A failed first create deletes that group on rollback. After a successful create, deleting or replacing the stack keeps the logs.
 
 ## Installation
 
 ### npm
 
 ```bash
-npm install codepipeline-event-notifier
+npm install codepipeline-pipeline-execution-event-notifier
 ```
 
 ### yarn
 
 ```bash
-yarn add codepipeline-event-notifier
+yarn add codepipeline-pipeline-execution-event-notifier
 ```
 
 ### pnpm
 
 ```bash
-pnpm add codepipeline-event-notifier
+pnpm add codepipeline-pipeline-execution-event-notifier
 ```
 
 ## Usage
 
-Instantiate `CodePipelineEventNotifier` in your CDK stack:
+Instantiate `CodePipelinePipelineExecutionEventNotifier` in your CDK stack:
 
 ```ts
 import { Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { CodePipelineEventNotifier } from 'codepipeline-event-notifier';
+import { CodePipelinePipelineExecutionEventNotifier } from 'codepipeline-pipeline-execution-event-notifier';
 
 export class MyStack extends Stack {
   constructor(scope: Construct, id: string) {
     super(scope, id);
 
-    const notifier = new CodePipelineEventNotifier(this, 'CodePipelineEventNotifier', {
+    const notifier = new CodePipelinePipelineExecutionEventNotifier(this, 'CodePipelinePipelineExecutionEventNotifier', {
       targetPipeline: {
         tags: [
           {
-            key: 'Notify',
-            values: ['true'],
+            tagKey: 'Notify',
+            tagValues: ['true'],
           },
         ],
       },
@@ -81,7 +87,7 @@ export class MyStack extends Stack {
 ```ts
 import { Duration, Stack, aws_sns as sns } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { CodePipelineEventNotifier } from 'codepipeline-event-notifier';
+import { CodePipelinePipelineExecutionEventNotifier } from 'codepipeline-pipeline-execution-event-notifier';
 
 export class MyStack extends Stack {
   constructor(scope: Construct, id: string) {
@@ -89,7 +95,7 @@ export class MyStack extends Stack {
 
     const topic = sns.Topic.fromTopicArn(this, 'ExistingTopic', 'arn:aws:sns:...');
 
-    new CodePipelineEventNotifier(this, 'CodePipelineEventNotifier', {
+    new CodePipelinePipelineExecutionEventNotifier(this, 'CodePipelinePipelineExecutionEventNotifier', {
       topic,
       waitInterval: Duration.seconds(30),
       maxWaitDuration: Duration.minutes(10),
@@ -98,8 +104,8 @@ export class MyStack extends Stack {
       targetPipeline: {
         tags: [
           {
-            key: 'Team',
-            values: ['platform', 'infra'],
+            tagKey: 'Team',
+            tagValues: ['platform', 'infra'],
           },
         ],
         arns: [
@@ -122,18 +128,19 @@ export class MyStack extends Stack {
 
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
-| `targetPipeline` | `TargetPipeline` | *(required)* | Tag filters (`tags`) for pipelines that should notify. Optional `arns` restrict IAM and skip other pipelines. Default IAM is this account and region |
+| `targetPipeline` | `TargetPipeline` | *(required)* | `tags` is `ConstructResourceTagCriteria[]` (`tagKey`, `tagValues`) for pipelines that should notify. Optional `arns` restrict IAM and skip other pipelines. Default IAM is this account and region |
 | `topic` | `sns.ITopic` | new topic | SNS topic to publish notifications to (also exposed as `notifier.topic`) |
 | `waitInterval` | `Duration` | `10 seconds` | Durable wait interval between `GetPipelineExecution` checks |
 | `maxWaitDuration` | `Duration` | `14 minutes` | Maximum wait duration and durable `executionTimeout` |
 | `timeout` | `Duration` | `5 minutes` | Per-invocation Lambda timeout (durable waits suspend between invocations) |
 | `durableRetentionPeriod` | `Duration` | `14 days` | How long Lambda retains durable execution history |
 | `eventPattern` | `events.EventPattern` | CodePipeline `STARTED` | EventBridge rule filter |
+| `failureDetection` | `CodePipelinePipelineExecutionEventNotifierFailureDetectionProps` | omitted | Opt-in CloudWatch alarms. `enabled: true` alarms on Lambda `Errors`, `Throttles`, and the wait-timeout log. `alarmTopic` is an existing SNS topic |
 
 The notifier Lambda uses these environment variables (set by the construct from props):
 
 - `SNS_TOPIC_ARN` (**required**): SNS topic ARN to publish notifications to
-- `TARGET_PIPELINE_TAGS` (**required**): JSON array of `{ key, values }` tag filters
+- `TARGET_PIPELINE_TAGS` (**required**): JSON array of `{ tagKey, tagValues }` criteria
 - `TARGET_PIPELINE_ARNS` (optional): JSON array of pipeline ARNs used as an allowlist when `targetPipeline.arns` is set
 - `WAIT_INTERVAL_SECONDS` (default: `10`): wait interval in seconds
 - `MAX_WAIT_MINUTES` (default: `14`): maximum wait duration in minutes
@@ -147,6 +154,8 @@ See the [API reference](./API.md).
 - Node.js `>= 20`
 - AWS CDK `v2` (`aws-cdk-lib` `^2.232.0`)
 - `constructs` `^10.5.1`
+- `construct-resource-criteria` `^0.2.0`
+- `lambda-failure-detector` `^0.2.3`
 
 ## License
 

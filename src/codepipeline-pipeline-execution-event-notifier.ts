@@ -1,5 +1,19 @@
-import { Duration, Stack, aws_events as events, aws_events_targets as targets, aws_iam as iam, aws_sns as sns } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack } from 'aws-cdk-lib';
+import { Rule, type EventPattern } from 'aws-cdk-lib/aws-events';
+import { LambdaFunction } from 'aws-cdk-lib/aws-events-targets';
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
+import { Topic, type ITopic } from 'aws-cdk-lib/aws-sns';
+import {
+  ConstructResourceCriteria,
+  type ConstructResourceTagCriteria,
+} from 'construct-resource-criteria';
 import { Construct } from 'constructs';
+import {
+  createLambdaFailureDetector,
+  type LambdaFailureDetection,
+  type LogFailureFilter,
+} from 'lambda-failure-detector';
 import { NotifierFunction } from './funcs/notifier-function';
 import {
   DEFAULT_MAX_WAIT_MINUTES,
@@ -9,6 +23,7 @@ import {
   ENV_TARGET_PIPELINE_ARNS,
   ENV_TARGET_PIPELINE_TAGS,
   ENV_WAIT_INTERVAL_SECONDS,
+  PIPELINE_EXECUTION_WAIT_TIMED_OUT_EVENT,
 } from './settings/consts';
 
 /**
@@ -27,29 +42,37 @@ const DEFAULT_DURABLE_RETENTION_DAYS = 14;
 const NOTIFIER_ALIAS_NAME = 'live';
 
 /**
- * Tag filter for selecting CodePipeline pipelines.
- * Keys across entries are AND; values within an entry are OR.
+ * CloudWatch Logs retention for the notifier Lambda.
+ * Kept after a successful create so a deleted or replaced stack can still be investigated.
  */
-export interface TargetPipelineTag {
-  /**
-   * Tag key that must be present on the pipeline.
-   */
-  readonly key: string;
+const NOTIFIER_LOG_RETENTION = RetentionDays.ONE_MONTH;
 
-  /**
-   * Accepted values for {@link key}.
-   */
-  readonly values: string[];
-}
+/**
+ * Custom metric namespace for notifier log alarms.
+ */
+const NOTIFIER_FAILURE_METRIC_NAMESPACE = 'CodePipelinePipelineExecutionEventNotifier';
+
+/**
+ * Log metric filters for business failures that do not increment Lambda `Errors`.
+ */
+const NOTIFIER_LOG_FAILURE_FILTERS: LogFailureFilter[] = [
+  {
+    id: PIPELINE_EXECUTION_WAIT_TIMED_OUT_EVENT,
+    filterPattern: `"${PIPELINE_EXECUTION_WAIT_TIMED_OUT_EVENT}"`,
+    metricNamespace: NOTIFIER_FAILURE_METRIC_NAMESPACE,
+    metricName: PIPELINE_EXECUTION_WAIT_TIMED_OUT_EVENT,
+  },
+];
 
 /**
  * Selection criteria for pipelines that should trigger notifications.
  */
 export interface TargetPipeline {
   /**
-   * Tag filters applied to CodePipeline resources.
+   * Tag criteria applied to CodePipeline resources.
+   * Entries are AND; {@link ConstructResourceTagCriteria.tagValues} within an entry are OR.
    */
-  readonly tags: TargetPipelineTag[];
+  readonly tags: ConstructResourceTagCriteria[];
 
   /**
    * Pipeline ARNs used as IAM resources for `GetPipelineExecution` and `ListTagsForResource`.
@@ -61,9 +84,16 @@ export interface TargetPipeline {
 }
 
 /**
- * Properties for {@link CodePipelineEventNotifier}.
+ * Opt-in CloudWatch alarms for {@link CodePipelinePipelineExecutionEventNotifier}.
+ * Alarms are created only when `enabled` is true.
+ * This construct does not create an SNS topic for those alarms.
  */
-export interface CodePipelineEventNotifierProps {
+export interface CodePipelinePipelineExecutionEventNotifierFailureDetectionProps extends LambdaFailureDetection {}
+
+/**
+ * Properties for {@link CodePipelinePipelineExecutionEventNotifier}.
+ */
+export interface CodePipelinePipelineExecutionEventNotifierProps {
   /**
    * Pipelines that should produce notifications, selected by resource tags.
    */
@@ -75,7 +105,7 @@ export interface CodePipelineEventNotifierProps {
    *
    * @default - a new topic is created
    */
-  readonly topic?: sns.ITopic;
+  readonly topic?: ITopic;
 
   /**
    * Interval between durable waits around `GetPipelineExecution` checks.
@@ -113,51 +143,16 @@ export interface CodePipelineEventNotifierProps {
    *
    * @default CodePipeline Pipeline Execution State Change with `state=STARTED`
    */
-  readonly eventPattern?: events.EventPattern;
+  readonly eventPattern?: EventPattern;
+
+  /**
+   * Opt-in CloudWatch alarms for Lambda `Errors`, `Throttles`, and a wait-timeout log.
+   * Pass an existing topic as `alarmTopic` when the alarms should notify.
+   *
+   * @default failure detection is omitted and no alarms are created
+   */
+  readonly failureDetection?: CodePipelinePipelineExecutionEventNotifierFailureDetectionProps;
 }
-
-/**
- * Validates and normalizes {@link TargetPipeline} tag filters.
- *
- * @param targetPipeline pipeline selection from construct props
- * @returns normalized tag filters
- */
-const resolveTargetPipelineTags = (targetPipeline: TargetPipeline): TargetPipelineTag[] => {
-  if (targetPipeline.tags.length === 0) {
-    throw new Error('targetPipeline.tags must be a non-empty array of { key, values }');
-  }
-
-  const seenKeys = new Set<string>();
-  const normalized: TargetPipelineTag[] = [];
-
-  for (const tag of targetPipeline.tags) {
-    const key = tag.key.trim();
-    if (!key) {
-      throw new Error('targetPipeline.tags must be a non-empty array of { key, values }');
-    }
-    if (seenKeys.has(key)) {
-      throw new Error(`targetPipeline.tags contains duplicate key: ${key}`);
-    }
-    seenKeys.add(key);
-
-    if (tag.values.length === 0) {
-      throw new Error('targetPipeline.tags must be a non-empty array of { key, values }');
-    }
-
-    const values: string[] = [];
-    for (const rawValue of tag.values) {
-      const value = rawValue.trim();
-      if (!value) {
-        throw new Error('targetPipeline.tags must be a non-empty array of { key, values }');
-      }
-      values.push(value);
-    }
-
-    normalized.push({ key, values });
-  }
-
-  return normalized;
-};
 
 /**
  * Validates optional pipeline ARNs used for IAM and runtime allowlisting.
@@ -195,21 +190,23 @@ const resolveTargetPipelineArns = (arns: string[] | undefined): string[] | undef
  * Provisions an EventBridge rule that listens for CodePipeline execution STARTED events,
  * then invokes a durable notifier Lambda which publishes execution state changes to an SNS topic.
  */
-export class CodePipelineEventNotifier extends Construct {
+export class CodePipelinePipelineExecutionEventNotifier extends Construct {
   /**
    * SNS topic that receives CodePipeline execution notifications.
    */
-  public readonly topic: sns.ITopic;
+  public readonly topic: ITopic;
 
   /**
    * @param scope the construct scope
    * @param id the construct id
    * @param props construct properties
    */
-  constructor(scope: Construct, id: string, props: CodePipelineEventNotifierProps) {
+  constructor(scope: Construct, id: string, props: CodePipelinePipelineExecutionEventNotifierProps) {
     super(scope, id);
 
-    const targetPipelineTags = resolveTargetPipelineTags(props.targetPipeline);
+    const targetPipelineTags = ConstructResourceCriteria.resolveTagCriteria(props.targetPipeline.tags, {
+      propPath: 'targetPipeline.tags',
+    });
     const targetPipelineArns = resolveTargetPipelineArns(props.targetPipeline.arns);
     const pipelineIamResources = targetPipelineArns ?? [
       Stack.of(this).formatArn({
@@ -218,7 +215,7 @@ export class CodePipelineEventNotifier extends Construct {
       }),
     ];
 
-    this.topic = props.topic ?? new sns.Topic(this, 'PipelineEventTopic');
+    this.topic = props.topic ?? new Topic(this, 'PipelineEventTopic');
 
     const waitInterval = props.waitInterval ?? Duration.seconds(DEFAULT_WAIT_INTERVAL_SECONDS);
     const maxWaitDuration = props.maxWaitDuration ?? Duration.minutes(DEFAULT_MAX_WAIT_MINUTES);
@@ -232,7 +229,14 @@ export class CodePipelineEventNotifier extends Construct {
       },
     };
 
+    // A failed first create still deletes the group. After a successful create, stack deletion or replacement keeps the logs.
+    const logGroup = new LogGroup(this, 'NotifierLogGroup', {
+      retention: NOTIFIER_LOG_RETENTION,
+      removalPolicy: RemovalPolicy.RETAIN_ON_UPDATE_OR_DELETE,
+    });
+
     const fn = new NotifierFunction(this, 'NotifierFunction', {
+      logGroup,
       environment: {
         [ENV_SNS_TOPIC_ARN]: this.topic.topicArn,
         [ENV_WAIT_INTERVAL_SECONDS]: String(waitInterval.toSeconds()),
@@ -250,9 +254,17 @@ export class CodePipelineEventNotifier extends Construct {
     // Durable execution requires a qualified ARN (version or alias).
     const liveAlias = fn.addAlias(NOTIFIER_ALIAS_NAME);
 
+    // Alarms use the caller's topic. The wait-timeout log does not increment Lambda Errors.
+    createLambdaFailureDetector(this, 'FailureDetector', {
+      failureDetection: props.failureDetection,
+      lambdaFunction: fn,
+      logGroup,
+      logFilters: NOTIFIER_LOG_FAILURE_FILTERS,
+    });
+
     // Allow the notifier to publish notifications and look up pipeline tags.
     this.topic.grantPublish(fn);
-    fn.addToRolePolicy(new iam.PolicyStatement({
+    fn.addToRolePolicy(new PolicyStatement({
       actions: [
         'codepipeline:GetPipelineExecution',
         'codepipeline:ListTagsForResource',
@@ -261,9 +273,9 @@ export class CodePipelineEventNotifier extends Construct {
     }));
 
     // Trigger the durable notifier when matching CodePipeline execution events arrive.
-    new events.Rule(this, 'OnPipelineExecutionStartedRule', {
+    new Rule(this, 'OnPipelineExecutionStartedRule', {
       eventPattern,
-      targets: [new targets.LambdaFunction(liveAlias)],
+      targets: [new LambdaFunction(liveAlias)],
     });
   }
 }

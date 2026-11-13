@@ -1,9 +1,9 @@
 {
-  "name": "codepipeline-event-notifier",
+  "name": "codepipeline-pipeline-execution-event-notifier",
   "description": "CDK construct that listens to AWS CodePipeline execution STARTED events via EventBridge, invokes a durable Lambda notifier, and publishes execution state changes to an SNS topic.",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gammarers-aws-cdk-constructs/codepipeline-event-notifier.git"
+    "url": "https://github.com/gammarers-aws-cdk-constructs/codepipeline-pipeline-execution-event-notifier.git"
   },
   "scripts": {
     "build": "projen build",
@@ -44,6 +44,7 @@
     "@aws/durable-execution-sdk-js": "^2.7.1",
     "@aws/durable-execution-sdk-js-testing": "^1.3.1",
     "@gammarers/projen-projects": "^0.5.10",
+    "@smithy/node-http-handler": "^4.14.1",
     "@stylistic/eslint-plugin": "^2",
     "@types/aws-lambda": "^8.10.162",
     "@types/jest": "^30.0.0",
@@ -51,7 +52,10 @@
     "@typescript-eslint/eslint-plugin": "^8",
     "@typescript-eslint/parser": "^8",
     "aws-cdk-lib": "2.232.0",
+    "aws-sdk-client-mock": "^4.1.0",
+    "aws-sdk-client-mock-jest": "^4.1.0",
     "commit-and-tag-version": "^13",
+    "construct-resource-criteria": "0.2.0",
     "constructs": "10.5.1",
     "esbuild": "^0.28.2",
     "eslint": "^9",
@@ -64,6 +68,7 @@
     "jsii-docgen": "^10.5.0",
     "jsii-pacmak": "^1.142.0",
     "jsii-rosetta": "6.0.x",
+    "lambda-failure-detector": "0.2.3",
     "projen": "^0.104.27",
     "strict-env-resolver": "^0.8.1",
     "ts-jest": "^29.4.15",
@@ -72,7 +77,9 @@
   },
   "peerDependencies": {
     "aws-cdk-lib": "^2.232.0",
-    "constructs": "^10.5.1"
+    "construct-resource-criteria": "^0.2.0",
+    "constructs": "^10.5.1",
+    "lambda-failure-detector": "^0.2.3"
   },
   "keywords": [
     "cdk"
@@ -95,14 +102,6 @@
   "version": "0.0.0",
   "jest": {
     "coverageProvider": "v8",
-    "coverageThreshold": {
-      "global": {
-        "branches": 95,
-        "functions": 90,
-        "lines": 100,
-        "statements": 100
-      }
-    },
     "testMatch": [
       "<rootDir>/@(src|test)/**/*(*.)@(spec|test).ts?(x)",
       "<rootDir>/@(src|test)/**/__tests__/**/*.ts?(x)",

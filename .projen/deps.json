@@ -26,6 +26,11 @@
       "type": "build"
     },
     {
+      "name": "@smithy/node-http-handler",
+      "version": "^4.14.1",
+      "type": "build"
+    },
+    {
       "name": "@stylistic/eslint-plugin",
       "version": "^2",
       "type": "build"
@@ -52,6 +57,16 @@
     {
       "name": "@typescript-eslint/parser",
       "version": "^8",
+      "type": "build"
+    },
+    {
+      "name": "aws-sdk-client-mock-jest",
+      "version": "^4.1.0",
+      "type": "build"
+    },
+    {
+      "name": "aws-sdk-client-mock",
+      "version": "^4.1.0",
       "type": "build"
     },
     {
@@ -136,8 +151,18 @@
       "type": "peer"
     },
     {
+      "name": "construct-resource-criteria",
+      "version": "^0.2.0",
+      "type": "peer"
+    },
+    {
       "name": "constructs",
       "version": "^10.5.1",
+      "type": "peer"
+    },
+    {
+      "name": "lambda-failure-detector",
+      "version": "^0.2.3",
       "type": "peer"
     }
   ],

@@ -1,71 +1,22 @@
-import { App, Duration, Stack, aws_sns as sns } from 'aws-cdk-lib';
+import { App, Duration, Stack } from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { CodePipelineEventNotifier, type CodePipelineEventNotifierProps } from '../src';
+import { Topic } from 'aws-cdk-lib/aws-sns';
+import { CodePipelinePipelineExecutionEventNotifier, type CodePipelinePipelineExecutionEventNotifierProps } from '../src';
+import { expectDurableNotifierWiring } from './expect-durable-notifier-wiring';
 
 const defaultTargetPipeline = {
   tags: [
     {
-      key: 'Notify',
-      values: ['true'],
+      tagKey: 'Notify',
+      tagValues: ['true'],
     },
   ],
 };
 
-/**
- * Asserts durable execution wiring shared across successful construct syntheses.
- */
-const expectDurableNotifierWiring = (template: Template): void => {
-  template.resourceCountIs('AWS::Lambda::Function', 1);
-  template.resourceCountIs('AWS::Lambda::Version', 1);
-  template.resourceCountIs('AWS::Lambda::Alias', 1);
-  template.resourceCountIs('AWS::Lambda::Permission', 1);
-  template.resourceCountIs('AWS::Events::Rule', 1);
-
-  template.hasResourceProperties('AWS::Lambda::Alias', {
-    Name: 'live',
-  });
-
-  template.hasResourceProperties('AWS::IAM::Role', {
-    ManagedPolicyArns: Match.arrayWith([
-      {
-        'Fn::Join': [
-          '',
-          [
-            'arn:',
-            { Ref: 'AWS::Partition' },
-            ':iam::aws:policy/service-role/AWSLambdaBasicDurableExecutionRolePolicy',
-          ],
-        ],
-      },
-    ]),
-  });
-
-  template.hasResourceProperties('AWS::IAM::Policy', {
-    PolicyDocument: Match.objectLike({
-      Statement: Match.arrayWith([
-        Match.objectLike({
-          Action: 'sns:Publish',
-          Effect: 'Allow',
-        }),
-      ]),
-    }),
-  });
-
-  const aliasLogicalId = Object.keys(template.findResources('AWS::Lambda::Alias'))[0];
-  template.hasResourceProperties('AWS::Events::Rule', {
-    Targets: [
-      {
-        Arn: { Ref: aliasLogicalId },
-        Id: 'Target0',
-      },
-    ],
-  });
-};
-
-describe('CodePipelineEventNotifier', () => {
+describe('CodePipelinePipelineExecutionEventNotifier', () => {
   it('uses defaults when optional props are omitted', () => {
     const stack = new Stack(new App(), 'Defaults');
-    new CodePipelineEventNotifier(stack, 'Notifier', {
+    new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: defaultTargetPipeline,
     });
 
@@ -126,9 +77,9 @@ describe('CodePipelineEventNotifier', () => {
 
   it('reuses an existing topic and applies custom props', () => {
     const stack = new Stack(new App(), 'Custom');
-    const topic = new sns.Topic(stack, 'ExistingTopic');
+    const topic = new Topic(stack, 'ExistingTopic');
 
-    new CodePipelineEventNotifier(stack, 'Notifier', {
+    new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       topic,
       waitInterval: Duration.seconds(30),
       maxWaitDuration: Duration.minutes(10),
@@ -137,8 +88,8 @@ describe('CodePipelineEventNotifier', () => {
       targetPipeline: {
         tags: [
           {
-            key: 'Team',
-            values: ['platform', 'infra'],
+            tagKey: 'Team',
+            tagValues: ['platform', 'infra'],
           },
         ],
       },
@@ -166,7 +117,7 @@ describe('CodePipelineEventNotifier', () => {
           WAIT_INTERVAL_SECONDS: '30',
           MAX_WAIT_MINUTES: '10',
           TARGET_PIPELINE_TAGS: JSON.stringify([
-            { key: 'Team', values: ['platform', 'infra'] },
+            { tagKey: 'Team', tagValues: ['platform', 'infra'] },
           ]),
         }),
       },
@@ -190,7 +141,7 @@ describe('CodePipelineEventNotifier', () => {
       'arn:aws:codepipeline:us-east-1:123456789012:other-pipeline',
     ];
 
-    new CodePipelineEventNotifier(stack, 'Notifier', {
+    new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: {
         tags: defaultTargetPipeline.tags,
         arns: pipelineArns,
@@ -221,42 +172,49 @@ describe('CodePipelineEventNotifier', () => {
     });
   });
 
-  it.each([
-    {
-      name: 'empty tags',
-      targetPipeline: { tags: [] },
-    },
-    {
-      name: 'empty key',
-      targetPipeline: { tags: [{ key: '', values: ['true'] }] },
-    },
-    {
-      name: 'empty values',
-      targetPipeline: { tags: [{ key: 'Notify', values: [] }] },
-    },
-    {
-      name: 'empty value string',
-      targetPipeline: { tags: [{ key: 'Notify', values: [''] }] },
-    },
-  ])('rejects $name', ({ targetPipeline }) => {
+  it('rejects an empty tag list', () => {
     const stack = new Stack(new App(), 'Invalid');
 
-    expect(() => new CodePipelineEventNotifier(stack, 'Notifier', {
-      targetPipeline,
-    })).toThrow('targetPipeline.tags must be a non-empty array of { key, values }');
+    expect(() => new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
+      targetPipeline: { tags: [] },
+    })).toThrow('targetPipeline.tags must contain at least one value.');
+  });
+
+  it.each([
+    {
+      name: 'blank tagKey',
+      tags: [{ tagKey: '', tagValues: ['true'] }],
+      message: 'targetPipeline.tags[0].tagKey must be a non-blank string.',
+    },
+    {
+      name: 'empty tagValues',
+      tags: [{ tagKey: 'Notify', tagValues: [] }],
+      message: 'targetPipeline.tags[0].tagValues must contain at least one value.',
+    },
+    {
+      name: 'blank tag value',
+      tags: [{ tagKey: 'Notify', tagValues: [''] }],
+      message: 'targetPipeline.tags[0].tagValues must not contain blank strings.',
+    },
+  ])('rejects $name', ({ tags, message }) => {
+    const stack = new Stack(new App(), 'Invalid');
+
+    expect(() => new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
+      targetPipeline: { tags },
+    })).toThrow(message);
   });
 
   it('rejects duplicate tag keys', () => {
     const stack = new Stack(new App(), 'Duplicate');
 
-    expect(() => new CodePipelineEventNotifier(stack, 'Notifier', {
+    expect(() => new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: {
         tags: [
-          { key: 'Notify', values: ['true'] },
-          { key: 'Notify', values: ['false'] },
+          { tagKey: 'Notify', tagValues: ['true'] },
+          { tagKey: 'Notify', tagValues: ['false'] },
         ],
       },
-    })).toThrow('targetPipeline.tags contains duplicate key: Notify');
+    })).toThrow('targetPipeline.tags contains duplicate tagKey: Notify');
   });
 
   it.each([
@@ -271,7 +229,7 @@ describe('CodePipelineEventNotifier', () => {
   ])('rejects $name', ({ arns }) => {
     const stack = new Stack(new App(), 'InvalidArns');
 
-    expect(() => new CodePipelineEventNotifier(stack, 'Notifier', {
+    expect(() => new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: {
         tags: defaultTargetPipeline.tags,
         arns,
@@ -283,7 +241,7 @@ describe('CodePipelineEventNotifier', () => {
     const stack = new Stack(new App(), 'DuplicateArns');
     const pipelineArn = 'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline';
 
-    expect(() => new CodePipelineEventNotifier(stack, 'Notifier', {
+    expect(() => new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: {
         tags: defaultTargetPipeline.tags,
         arns: [pipelineArn, pipelineArn],
@@ -291,13 +249,11 @@ describe('CodePipelineEventNotifier', () => {
     })).toThrow(`targetPipeline.arns contains duplicate ARN: ${pipelineArn}`);
   });
 
-  it('trims tag keys and values before storing them', () => {
+  it('trims pipeline ARNs before storing them', () => {
     const stack = new Stack(new App(), 'Trim');
-    new CodePipelineEventNotifier(stack, 'Notifier', {
+    new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
       targetPipeline: {
-        tags: [
-          { key: ' Notify ', values: [' true '] },
-        ],
+        tags: defaultTargetPipeline.tags,
         arns: [
           ' arn:aws:codepipeline:us-east-1:123456789012:my-pipeline ',
         ],
@@ -308,9 +264,7 @@ describe('CodePipelineEventNotifier', () => {
     template.hasResourceProperties('AWS::Lambda::Function', {
       Environment: {
         Variables: Match.objectLike({
-          TARGET_PIPELINE_TAGS: JSON.stringify([
-            { key: 'Notify', values: ['true'] },
-          ]),
+          TARGET_PIPELINE_TAGS: JSON.stringify(defaultTargetPipeline.tags),
           TARGET_PIPELINE_ARNS: JSON.stringify([
             'arn:aws:codepipeline:us-east-1:123456789012:my-pipeline',
           ]),
@@ -319,17 +273,86 @@ describe('CodePipelineEventNotifier', () => {
     });
   });
 
+  describe('failure detection', () => {
+    it('creates no alarms when failure detection is omitted', () => {
+      const stack = new Stack(new App(), 'NoFailureDetection');
+      new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
+        targetPipeline: defaultTargetPipeline,
+      });
+
+      const template = Template.fromStack(stack);
+      template.resourceCountIs('AWS::CloudWatch::Alarm', 0);
+      template.resourceCountIs('AWS::Logs::MetricFilter', 0);
+    });
+
+    it('alarms on Lambda errors, throttles, and the wait-timeout log without an alarm topic', () => {
+      const stack = new Stack(new App(), 'FailureDetection');
+      new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
+        targetPipeline: defaultTargetPipeline,
+        failureDetection: {
+          enabled: true,
+        },
+      });
+
+      const template = Template.fromStack(stack);
+      template.resourceCountIs('AWS::CloudWatch::Alarm', 3);
+      template.resourceCountIs('AWS::Logs::MetricFilter', 1);
+      template.hasResourceProperties('AWS::Logs::MetricFilter', {
+        FilterPattern: '"PipelineExecutionWaitTimedOut"',
+        MetricTransformations: [
+          Match.objectLike({
+            MetricNamespace: 'CodePipelinePipelineExecutionEventNotifier',
+            MetricName: 'PipelineExecutionWaitTimedOut',
+          }),
+        ],
+      });
+      template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+        Namespace: 'AWS/Lambda',
+        MetricName: 'Errors',
+      });
+      template.hasResourceProperties('AWS::CloudWatch::Alarm', {
+        Namespace: 'AWS/Lambda',
+        MetricName: 'Throttles',
+      });
+      const alarms = template.findResources('AWS::CloudWatch::Alarm');
+      for (const alarm of Object.values(alarms)) {
+        expect(alarm.Properties.AlarmActions).toBeUndefined();
+      }
+    });
+
+    it('notifies the caller topic when alarmTopic is set', () => {
+      const stack = new Stack(new App(), 'FailureDetectionTopic');
+      const alarmTopic = new Topic(stack, 'AlarmTopic');
+      new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', {
+        targetPipeline: defaultTargetPipeline,
+        failureDetection: {
+          enabled: true,
+          alarmTopic,
+        },
+      });
+
+      const template = Template.fromStack(stack);
+      const topicLogicalId = Object.keys(template.findResources('AWS::SNS::Topic')).find((id) => id.startsWith('AlarmTopic'));
+      expect(topicLogicalId).toBeDefined();
+      const alarms = template.findResources('AWS::CloudWatch::Alarm');
+      expect(Object.keys(alarms)).toHaveLength(3);
+      for (const alarm of Object.values(alarms)) {
+        expect(alarm.Properties.AlarmActions).toEqual([{ Ref: topicLogicalId }]);
+      }
+    });
+  });
+
   describe('template snapshots for major props combinations', () => {
     it.each([
       {
         name: 'defaults',
-        buildProps: (): CodePipelineEventNotifierProps => ({
+        buildProps: (): CodePipelinePipelineExecutionEventNotifierProps => ({
           targetPipeline: defaultTargetPipeline,
         }),
       },
       {
         name: 'custom-timing',
-        buildProps: (): CodePipelineEventNotifierProps => ({
+        buildProps: (): CodePipelinePipelineExecutionEventNotifierProps => ({
           targetPipeline: defaultTargetPipeline,
           waitInterval: Duration.seconds(30),
           maxWaitDuration: Duration.minutes(10),
@@ -339,11 +362,11 @@ describe('CodePipelineEventNotifier', () => {
       },
       {
         name: 'existing-topic-and-pattern',
-        buildProps: (stack: Stack): CodePipelineEventNotifierProps => ({
-          topic: new sns.Topic(stack, 'ExistingTopic'),
+        buildProps: (stack: Stack): CodePipelinePipelineExecutionEventNotifierProps => ({
+          topic: new Topic(stack, 'ExistingTopic'),
           targetPipeline: {
             tags: [
-              { key: 'Team', values: ['platform', 'infra'] },
+              { tagKey: 'Team', tagValues: ['platform', 'infra'] },
             ],
           },
           eventPattern: {
@@ -357,8 +380,18 @@ describe('CodePipelineEventNotifier', () => {
         }),
       },
       {
+        name: 'failure-detection',
+        buildProps: (stack: Stack): CodePipelinePipelineExecutionEventNotifierProps => ({
+          targetPipeline: defaultTargetPipeline,
+          failureDetection: {
+            enabled: true,
+            alarmTopic: new Topic(stack, 'AlarmTopic'),
+          },
+        }),
+      },
+      {
         name: 'arns-allowlist',
-        buildProps: (): CodePipelineEventNotifierProps => ({
+        buildProps: (): CodePipelinePipelineExecutionEventNotifierProps => ({
           targetPipeline: {
             tags: defaultTargetPipeline.tags,
             arns: [
@@ -369,7 +402,7 @@ describe('CodePipelineEventNotifier', () => {
       },
     ])('matches snapshot for $name', ({ name, buildProps }) => {
       const stack = new Stack(new App(), `Snap-${name}`);
-      new CodePipelineEventNotifier(stack, 'Notifier', buildProps(stack));
+      new CodePipelinePipelineExecutionEventNotifier(stack, 'Notifier', buildProps(stack));
 
       expect(Template.fromStack(stack).toJSON()).toMatchSnapshot(name);
     });

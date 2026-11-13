@@ -12,44 +12,44 @@ import {
 
 describe('isPipelineTagFilterList', () => {
   it.each([
-    { name: 'valid single filter', value: [{ key: 'Notify', values: ['true'] }], expected: true },
+    { name: 'valid single filter', value: [{ tagKey: 'Notify', tagValues: ['true'] }], expected: true },
     { name: 'empty array', value: [], expected: false },
-    { name: 'not an array', value: { key: 'Notify', values: ['true'] }, expected: false },
-    { name: 'empty key', value: [{ key: '', values: ['true'] }], expected: false },
-    { name: 'empty values', value: [{ key: 'Notify', values: [] }], expected: false },
-    { name: 'empty value string', value: [{ key: 'Notify', values: [''] }], expected: false },
+    { name: 'not an array', value: { tagKey: 'Notify', tagValues: ['true'] }, expected: false },
+    { name: 'empty key', value: [{ tagKey: '', tagValues: ['true'] }], expected: false },
+    { name: 'empty values', value: [{ tagKey: 'Notify', tagValues: [] }], expected: false },
+    { name: 'empty value string', value: [{ tagKey: 'Notify', tagValues: [''] }], expected: false },
     { name: 'non-object entry', value: ['Notify'], expected: false },
     { name: 'null entry', value: [null], expected: false },
-    { name: 'missing values', value: [{ key: 'Notify' }], expected: false },
-    { name: 'missing key', value: [{ values: ['true'] }], expected: false },
+    { name: 'missing values', value: [{ tagKey: 'Notify' }], expected: false },
+    { name: 'missing key', value: [{ tagValues: ['true'] }], expected: false },
   ])('returns $expected for $name', ({ value, expected }) => {
     expect(isPipelineTagFilterList(value)).toBe(expected);
   });
 });
 
 describe('normalizeTagFilters', () => {
-  it('trims keys and values', () => {
+  it('copies criteria', () => {
     expect(normalizeTagFilters([
-      { key: ' Team ', values: [' platform ', 'infra'] },
+      { tagKey: 'Team', tagValues: ['platform', 'infra'] },
     ])).toEqual([
-      { key: 'Team', values: ['platform', 'infra'] },
+      { tagKey: 'Team', tagValues: ['platform', 'infra'] },
     ]);
   });
 
   it('throws on duplicate keys', () => {
     expect(() => normalizeTagFilters([
-      { key: 'Notify', values: ['true'] },
-      { key: 'Notify', values: ['false'] },
-    ])).toThrow('Tag filter list contains duplicate key: Notify');
+      { tagKey: 'Notify', tagValues: ['true'] },
+      { tagKey: 'Notify', tagValues: ['false'] },
+    ])).toThrow('Tag filter list contains duplicate tagKey: Notify');
   });
 });
 
 describe('parseTargetPipelineTags', () => {
   it('parses valid JSON filters', () => {
     expect(parseTargetPipelineTags(JSON.stringify([
-      { key: 'Notify', values: ['true'] },
+      { tagKey: 'Notify', tagValues: ['true'] },
     ]))).toEqual([
-      { key: 'Notify', values: ['true'] },
+      { tagKey: 'Notify', tagValues: ['true'] },
     ]);
   });
 
@@ -57,13 +57,13 @@ describe('parseTargetPipelineTags', () => {
     { name: 'invalid JSON', raw: '{', message: 'TARGET_PIPELINE_TAGS must be valid JSON' },
     {
       name: 'non-array JSON',
-      raw: JSON.stringify({ key: 'Notify', values: ['true'] }),
-      message: 'TARGET_PIPELINE_TAGS must be a non-empty array of { key, values }',
+      raw: JSON.stringify({ tagKey: 'Notify', tagValues: ['true'] }),
+      message: 'TARGET_PIPELINE_TAGS must be a non-empty array of { tagKey, tagValues }',
     },
     {
       name: 'empty array',
       raw: '[]',
-      message: 'TARGET_PIPELINE_TAGS must be a non-empty array of { key, values }',
+      message: 'TARGET_PIPELINE_TAGS must be a non-empty array of { tagKey, tagValues }',
     },
   ])('throws for $name', ({ raw, message }) => {
     expect(() => parseTargetPipelineTags(raw)).toThrow(message);
@@ -99,42 +99,42 @@ describe('matchesTargetPipelineTags', () => {
     {
       name: 'single matching value',
       pipelineTags: { Notify: 'true' },
-      filters: [{ key: 'Notify', values: ['true'] }],
+      filters: [{ tagKey: 'Notify', tagValues: ['true'] }],
       expected: true,
     },
     {
       name: 'OR values',
       pipelineTags: { Team: 'infra' },
-      filters: [{ key: 'Team', values: ['platform', 'infra'] }],
+      filters: [{ tagKey: 'Team', tagValues: ['platform', 'infra'] }],
       expected: true,
     },
     {
       name: 'AND keys',
       pipelineTags: { Notify: 'true', Team: 'platform' },
       filters: [
-        { key: 'Notify', values: ['true'] },
-        { key: 'Team', values: ['platform'] },
+        { tagKey: 'Notify', tagValues: ['true'] },
+        { tagKey: 'Team', tagValues: ['platform'] },
       ],
       expected: true,
     },
     {
       name: 'missing key',
       pipelineTags: { Team: 'platform' },
-      filters: [{ key: 'Notify', values: ['true'] }],
+      filters: [{ tagKey: 'Notify', tagValues: ['true'] }],
       expected: false,
     },
     {
       name: 'value not in list',
       pipelineTags: { Notify: 'false' },
-      filters: [{ key: 'Notify', values: ['true'] }],
+      filters: [{ tagKey: 'Notify', tagValues: ['true'] }],
       expected: false,
     },
     {
       name: 'AND fails when one key mismatches',
       pipelineTags: { Notify: 'true', Team: 'other' },
       filters: [
-        { key: 'Notify', values: ['true'] },
-        { key: 'Team', values: ['platform'] },
+        { tagKey: 'Notify', tagValues: ['true'] },
+        { tagKey: 'Team', tagValues: ['platform'] },
       ],
       expected: false,
     },

@@ -166,7 +166,7 @@
         {
           "execArgs": [
             "jsii-diff",
-            "npm:codepipeline-event-notifier",
+            "npm:codepipeline-pipeline-execution-event-notifier",
             "-k",
             "--ignore-file",
             ".compatignore"
@@ -361,6 +361,7 @@
         {
           "execArgs": [
             "jest",
+            "--silent",
             "--passWithNoTests",
             "--updateSnapshot"
           ],
@@ -431,12 +432,15 @@
             "@aws/durable-execution-sdk-js-testing",
             "@aws/durable-execution-sdk-js",
             "@gammarers/projen-projects",
+            "@smithy/node-http-handler",
             "@stylistic/eslint-plugin",
             "@types/aws-lambda",
             "@types/jest",
             "@types/node",
             "@typescript-eslint/eslint-plugin",
             "@typescript-eslint/parser",
+            "aws-sdk-client-mock-jest",
+            "aws-sdk-client-mock",
             "commit-and-tag-version",
             "esbuild",
             "eslint-import-resolver-typescript",
@@ -455,7 +459,9 @@
             "ts-node",
             "typescript",
             "aws-cdk-lib",
-            "constructs"
+            "construct-resource-criteria",
+            "constructs",
+            "lambda-failure-detector"
           ]
         },
         {
