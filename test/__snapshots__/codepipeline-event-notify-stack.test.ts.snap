@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`CodePipelineEventNotifyStack matches snapshot 1`] = `
+exports[`CodePipelineEventNotifyStack deploys the notifier with default durable wiring 1`] = `
 {
   "Parameters": {
     "BootstrapVersion": {
