@@ -1,6 +1,7 @@
 import { withDurableExecution, type DurableContext } from '@aws/durable-execution-sdk-js';
 import { CodePipelineClient, GetPipelineExecutionCommand, ListTagsForResourceCommand } from '@aws-sdk/client-codepipeline';
 import { PublishCommand, SNSClient } from '@aws-sdk/client-sns';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
 import type { EventBridgeEvent } from 'aws-lambda';
 import { StrictEnvResolver, StrictEnvType } from 'strict-env-resolver';
 import {
@@ -52,17 +53,29 @@ type CodePipelineExecutionStartedEvent = EventBridgeEvent<
 const WAIT_TIMEOUT_NOTE = 'Waiting timed out before terminal state.';
 
 /**
+ * Per-attempt HTTP limits. SDK retries stay at `maxAttempts` and are not wrapped again.
+ */
+const sdkHttpHandler = (): NodeHttpHandler => new NodeHttpHandler({
+  connectionTimeout: 5_000,
+  requestTimeout: 30_000,
+});
+
+/**
  * SNS client used to publish notifications.
+ * Region comes from the Lambda environment. One send tries at most 3 times.
  */
 const sns = new SNSClient({
   maxAttempts: 3,
+  requestHandler: sdkHttpHandler(),
 });
 
 /**
  * CodePipeline client used to wait for execution state changes.
+ * Region comes from the Lambda environment. One send tries at most 3 times.
  */
 const codepipeline = new CodePipelineClient({
   maxAttempts: 3,
+  requestHandler: sdkHttpHandler(),
 });
 
 /**
@@ -104,7 +117,6 @@ const waitPipelineExecution = async (params: {
 
   const maxAttempts = resolveMaxAttempts(waitIntervalSeconds, maxWaitMinutes);
   let lastStatus: string | undefined;
-  let reachedTerminal = false;
 
   await durable.step('publish-started', async () => {
     await publish(topicArn, {
@@ -142,32 +154,26 @@ const waitPipelineExecution = async (params: {
     }
 
     if (isTerminalExecutionStatus(status)) {
-      reachedTerminal = true;
-      break;
+      return;
     }
 
     if (!hasMoreWaitAttempts(attempt, maxAttempts)) {
-      break;
+      await durable.step('publish-timeout', async () => {
+        await publish(topicArn, {
+          type: 'codepipeline.execution',
+          phase: 'wait',
+          pipelineName,
+          executionId,
+          observedState: status,
+          observedAt: new Date().toISOString(),
+          note: WAIT_TIMEOUT_NOTE,
+        });
+      });
+      return;
     }
 
     await durable.wait(`wait-${attempt}`, { seconds: waitIntervalSeconds });
   }
-
-  if (reachedTerminal) {
-    return;
-  }
-
-  await durable.step('publish-timeout', async () => {
-    await publish(topicArn, {
-      type: 'codepipeline.execution',
-      phase: 'wait',
-      pipelineName,
-      executionId,
-      observedState: lastStatus ?? 'UNKNOWN',
-      observedAt: new Date().toISOString(),
-      note: WAIT_TIMEOUT_NOTE,
-    });
-  });
 };
 
 /**

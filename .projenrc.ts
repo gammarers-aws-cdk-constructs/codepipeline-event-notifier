@@ -12,6 +12,7 @@ const project = new ProjenCdkConstructLibrary({
     '@types/aws-lambda@^8.10.162',
     '@aws-sdk/client-codepipeline@^3.1080.0',
     '@aws-sdk/client-sns@^3.1080.0',
+    '@smithy/node-http-handler@^4.14.1',
     'aws-sdk-client-mock@^4.1.0',
     'aws-sdk-client-mock-jest@^4.1.0',
     '@aws/durable-execution-sdk-js@^2.7.1',

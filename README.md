@@ -26,6 +26,8 @@ CDK construct that listens to **AWS CodePipeline execution STARTED** events via 
 3. It publishes an SNS message with `phase: eventbridge`, then uses durable steps and waits around `GetPipelineExecution` until a terminal status (`SUCCEEDED` / `FAILED` / `STOPPED` / `SUPERSEDED`) or `maxWaitDuration`.
 4. Each status change (and timeout) is published with `phase: wait`. Subscribe to `notifier.topic`; this construct does not add subscriptions.
 
+CodePipeline and SNS calls retry inside the AWS SDK client (`maxAttempts` 3). One attempt allows 5 seconds to connect and 30 seconds for the response. The handler does not add its own retry loop. The overall wait stops at `maxWaitDuration`.
+
 ## Installation
 
 ### npm

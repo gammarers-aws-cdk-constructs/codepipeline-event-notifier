@@ -431,6 +431,7 @@
             "@aws/durable-execution-sdk-js-testing",
             "@aws/durable-execution-sdk-js",
             "@gammarers/projen-projects",
+            "@smithy/node-http-handler",
             "@stylistic/eslint-plugin",
             "@types/aws-lambda",
             "@types/jest",
